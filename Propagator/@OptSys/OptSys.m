@@ -16,9 +16,11 @@ classdef OptSys < matlab.mixin.Copyable
     end % of public properties
     
     properties(GetAccess = 'public', SetAccess = 'protected')
-        numElements_ = 1; % number of elements in system
+        numElements_ = 0; % number of elements in system
         f_number_; % F/# of system
         ELEMENTS_; % cell array of element cards
+        
+        conjugations_ = zeros(1,1);
         
         
         % GPU properties
@@ -31,8 +33,8 @@ classdef OptSys < matlab.mixin.Copyable
         
         
         % Misc
-        verbose; % print extra info
-        interpolate_method;
+        verbose = 1; % print extra info
+        interpolate_method = [];
         
     end % of protected properties
     
@@ -41,10 +43,9 @@ classdef OptSys < matlab.mixin.Copyable
         
         %% Constructor
         
-        function OS = OptSys(numElements)
-            % OS = OptSys(numElements)
+        function OS = OptSys()
+            % OS = OptSys()
             
-            OS.numElements_ = numElements;
             OS.initOptSys;
             
             
@@ -57,14 +58,56 @@ classdef OptSys < matlab.mixin.Copyable
             %OS = initializeOptSys(OS)
             
             OS.ELEMENTS_ = cell(OS.numElements_,1);
-            OS.initGPU;
+            OS.nGPUs = gpuDeviceCount;
+            if OS.nGPUs > 0
+                OS.initGPU;
+            end
             
         end % of initOptSys
+        
+        function OS = addElement(OS,elem)
+            % OS = addElement(OS,elem)
+            % adds and Element object to the optical system
             
+            if isa(elem,'OptElement')
+                OS.numElements_ = OS.numElements_ + 1;
+                OS.ELEMENTS_{OS.numElements_} = elem;
+                OS.setConjugations;
+                
+            else
+                error('I do not understand anything but OptElement objects');
+            end
+        end % of addElement
+                
+        
+        function conjugations = setConjugations(OS)
+            % OS = setConjugations(OS)
+            % Adds the zpos_ of an added element to the conjugations list
+            
+            conjugations = zeros(OS.numElements_,1);
+            for z = 1:OS.numElements_
+                conjugations(z,1) = OS.ELEMENTS_{z}.z_position_;
+            end
+            OS.conjugations_ = conjugations;
+            
+        end % of setConjugations
+        
+        function OS = getElementFNum(OS,element_num)
+            % OS = getElementFNum(OS,element_num)
+            % sets the f/# of the system to that of an element
+            
+            OS.f_number_ = OS.ELEMENTS_{element_num}.getFNumber;
+        end % of getElementFNum
+            
+        %% Propagation Methods
+        
+        
+        
+        
+        %% GPU Methods
+        
         function OS = initGPU(OS)
             
-            % Count number of GPUs
-            OS.nGPUs = gpuDeviceCount;
             OS.DEVICES = cell(OS.nGPUs,1);
             
             % Initialize Detected GPUs
@@ -73,8 +116,8 @@ classdef OptSys < matlab.mixin.Copyable
                 OS.useGPU = 1;  % initialize to use GPU if there is one
 
             elseif OS.nGPUs == 2
-                OS.DEVICES{1} = gpuDevice(1);
                 OS.DEVICES{2} = gpuDevice(2);
+                OS.DEVICES{1} = gpuDevice(1);
                 OS.nWorkers = 2;
                 OS.useGPU = 1;  % initialize to use GPU if there is one
                 
@@ -82,8 +125,8 @@ classdef OptSys < matlab.mixin.Copyable
                 fprintf('Only supports up to 2 GPUs\n');
                 n = input('Please Select a GPU to use:  ');
                 m = input('Please Select a second GPU to use:  ');
-                OS.DEVICES{1} = gpuDevice(n);
                 OS.DEVICES{2} = gpuDevice(m);
+                OS.DEVICES{1} = gpuDevice(n);
                 OS.nGPUS = 2;
                 OS.nWorkers = 2;
                 OS.useGPU = 1;  % initialize to use GPU if there is one
@@ -91,13 +134,30 @@ classdef OptSys < matlab.mixin.Copyable
             else
                 warning('GPU:noGPU','No GPU to use!\n');
                 OS.useGPU = 0;
-                OS
+                c = parcluster('local'); % build the 'local' cluster object
+                OS.nWorkers = c.NumWorkers % get the number of CPU cores from it
             end
             
-
-          
         end % of initGPU
 
+        
+        function mem = GPUavailableMem(OS)
+            % mem = GPUavailableMem(OS)
+            % Returns the available memory on the active GPU
+            
+            mem = OS.DEVICES{1}.AvailableMemory;
+                
+            
+        end % of GPUavailableMem
+        
+        function OS = useCPU(OS)
+            % useCPU(OS)
+            % Tell code to not use GPUs. Initialize CPU workers
+            
+            OS.useGPU = 0;
+            c = parcluster('local'); % build the 'local' cluster object
+            OS.nWorkers = c.NumWorkers % get the number of CPU cores from it
+        end % useCPU    
         
     end % of methods
     
@@ -118,6 +178,7 @@ end
 
 % Propagation type to be used currently stored in element
 % This might change. All the actual propagation should occur here
+% interpolation method is also set in element. this could change as well
 
 % Element type and lens/mirror stored in element. This should help making
 % separate propagation methods for certain items doable (if necessary)
