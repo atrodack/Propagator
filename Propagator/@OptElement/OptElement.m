@@ -11,12 +11,15 @@ classdef OptElement < matlab.mixin.Copyable
     
     properties(GetAccess='public',SetAccess='public')
         name; % give a name to the structure/system
+        default_data_type = 'double'; % data_type of zsag_
         
+        verbose = 1; % print extra info
+        interpolate_method = []; % selects a method of interpolation
     end % of public properties
     
     properties(GetAccess = 'public', SetAccess = 'protected')
         % Element Properties
-        type_; % element type
+        type_; % element type ---> see set_type method
         isMirror_; %flag for determining lens or mirror
         focal_length_; % focal length in meters
         z_position_; % position from previous element along optical axis
@@ -28,12 +31,7 @@ classdef OptElement < matlab.mixin.Copyable
         % Propagation Type
         % 0 = Fourier Optics, 1 = Fraunhofer, 2 = Fresnel
         propagation_type;
-        
-        
-        % Misc
-        verbose = 1; % print extra info
-        interpolate_method;
-        
+                
     end % of protected properties
     
     %% Methods
@@ -45,14 +43,14 @@ classdef OptElement < matlab.mixin.Copyable
             % If something is unknown or to be set later, leave that
             % position in A empty:
             %
-            % PROPERTIES{1,1} = name
-            % PROPERTIES{2,1} = type (0-8)
-            % PROPERTIES{3,1} = isMirror (1 or 0)
-            % PROPERTIES{4,1} = focal length (m)
-            % PROPERTIES{5,1} = z_position (m)
-            % PROPERTIES{6,1} = diameter (m)
-            % PROPERTIES{7,1} = zsag (m) [file path or matrix]
-            % PROPERTIES{8,1} = propagation code
+%             PROPERTIES{1,1} = name
+%             PROPERTIES{2,1} = type (0-8)
+%             PROPERTIES{3,1} = isMirror (1 or 0)
+%             PROPERTIES{4,1} = focal length (m)
+%             PROPERTIES{5,1} = z_position (m)
+%             PROPERTIES{6,1} = diameter (m)
+%             PROPERTIES{7,1} = zsag (m) [file path or matrix]
+%             PROPERTIES{8,1} = propagation code
             
             if size(PROPERTIES) == [8,1]
                 if iscell(PROPERTIES) == 1
@@ -164,7 +162,50 @@ classdef OptElement < matlab.mixin.Copyable
         elem.name = name;
     end % of set_name
     
-    
+    function elem = setdatatype(elem,default_data_type)
+            % elem = datatype(default_data_type)
+            % Sets the datatype to use. Do not do anything if already of
+            % the correct data type.
+            % Currently supported:
+            % single
+            % double
+            % uint8
+            
+            if nargin < 2
+                default_data_type = elem.default_data_type;
+            else
+                elem.default_data_type = default_data_type;
+            end
+            
+            switch default_data_type
+                case 'single'
+                    if ~isa(elem.zsag_,'single')
+                        elem.zsag_ = single(elem.zsag_);
+                        if elem.verbose == 1
+                            fprintf('Data Type set to single\n');
+                        end
+                    end
+                    
+                case 'double'
+                    if ~isa(elem.zsag_,'double')
+                        elem.zsag_ = double(elem.zsag_);
+                        if elem.verbose == 1
+                            fprintf('Data Type set to double\n');
+                        end
+                    end
+                    
+                case 'uint8'
+                    if ~isa(elem.zsag_,'uint8')
+                        elem.zsag_ = uint8(elem.zsag_);
+                        if elem.verbose == 1
+                            fprintf('Data Type set to uint8\n');
+                        end
+                    end
+                    
+                otherwise
+                    error('I do not understand that data type (yet)!');
+            end
+        end % of setdatatype
     %% Read out properties
     
     function type = getElementType(elem)
@@ -191,7 +232,9 @@ classdef OptElement < matlab.mixin.Copyable
         elseif type == 8
             descr = 'WFS';
         end
-        fprintf('Element is a %s \n',descr);
+        if elem.verbose == 1
+            fprintf('Element is a %s \n',descr);
+        end
     end % of getElementType
     
     function morl = getisMirror(elem)
@@ -204,7 +247,9 @@ classdef OptElement < matlab.mixin.Copyable
         elseif morl == 1
             descr = 'Mirror';
         end
-       fprintf('Element is a %s\n',descr);
+        if elem.verbose == 1
+            fprintf('Element is a %s\n',descr);
+        end
     end % of getisMirror(elem);
     
     function fl = getFocalLength(elem)
@@ -239,13 +284,16 @@ classdef OptElement < matlab.mixin.Copyable
         % propagation_method = getPropagationMethod(elem)
         % returns the method to be used for propagation
         
-        val = elem.propagation_type;
-        if val == 0
-            propagation_method = 'Fourier Optics';
-        elseif val == 1
-            propagation_method = 'Fraunhofer';
-        elseif val == 2
-            propagation_method = 'Fresnel';
+        propagation_method = elem.propagation_type;
+        if propagation_method == 0
+            descr = 'Fourier Optics';
+        elseif propagation_method == 1
+            descr = 'Fraunhofer';
+        elseif propagation_method == 2
+            descr = 'Fresnel';
+        end
+        if elem.verbose == 1
+            fprintf('The Propagation Method is %s\n',descr);
         end
     end % of getPropagationMethod
     
@@ -258,6 +306,7 @@ classdef OptElement < matlab.mixin.Copyable
         
         fnum = elem.getFocalLength / elem.getDiameter;
     end % getFNumber
+    
     
     
     end % of methods
