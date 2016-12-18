@@ -20,13 +20,15 @@ classdef OptElement < matlab.mixin.Copyable
     properties(GetAccess = 'public', SetAccess = 'protected')
         % Element Properties
         type_; % element type ---> see set_type method
-        isMirror_; %flag for determining lens or mirror
+        material_;
         focal_length_; % focal length in meters
         z_position_; % position from previous element along optical axis
         diameter_; % diameter of element in meters
         
         % Map of Optic Surface
         zsag_; % (in meters)
+        
+        phasefac_; % factor used to convert zsag_ into phase
         
         % Propagation Type
         % 0 = Fourier Optics, 1 = Fraunhofer, 2 = Fresnel
@@ -45,7 +47,7 @@ classdef OptElement < matlab.mixin.Copyable
             %
 %             PROPERTIES{1,1} = name
 %             PROPERTIES{2,1} = type (0-8)
-%             PROPERTIES{3,1} = isMirror (1 or 0)
+%             PROPERTIES{3,1} = material (0-10)
 %             PROPERTIES{4,1} = focal length (m)
 %             PROPERTIES{5,1} = z_position (m)
 %             PROPERTIES{6,1} = diameter (m)
@@ -64,7 +66,7 @@ classdef OptElement < matlab.mixin.Copyable
             
             elem.set_name(A{1,1});
             elem.set_type(A{2,1});
-            elem.set_isMirror(A{3,1});
+            elem.set_material(A{3,1});
             elem.set_focal_length(A{4,1});
             elem.set_z_position(A{5,1});
             elem.set_diameter(A{6,1});
@@ -96,12 +98,34 @@ classdef OptElement < matlab.mixin.Copyable
         elem.type_ = type;
     end % of set_type
     
-    function elem = set_isMirror(elem,flag)
-        % elem = set_isMirror(elem,flag)
-        % sets the flag to determine if element is a mirror or lens
+    function elem = set_material(elem,MATERIAL)
+        % elem = set_material(elem,MATERIAL)
+        % sets material to corresponding OptMaterial object
+        % See OptMaterial.m for material more info
         
-        elem.isMirror_ = flag;
-    end % of set_isMirror
+        if isa(MATERIAL,'OptMaterial')
+            elem.material_ = MATERIAL;
+            if elem.verbose == 1
+                fprintf('Material %s loaded into Element %s\n',MATERIAL.material.name,elem.name);
+            end
+        elseif isempty(MATERIAL)
+            if elem.verbose == 1
+                fprintf('No Material for Element %s\n',elem.name);
+            end
+        else
+            error('Material must be of class OptMaterial');
+        end
+        
+    end % of set_material
+        
+    function elem = set_phasefactor(elem,lambda)
+        % elem = set_phasefactor(elem)
+        % computes and sets the phasefac_ property using the material
+        
+        elem.phasefac_ = elem.material_.ComputePhaseFactor(lambda);
+    end % of set_phasefactor
+        
+        
     
     function elem = set_focal_length(elem,f)
         % elem = set_focal_length(elem,f)
@@ -237,20 +261,6 @@ classdef OptElement < matlab.mixin.Copyable
         end
     end % of getElementType
     
-    function morl = getisMirror(elem)
-        %morl = getisMirror(elem)
-        % returns if the element is a mirror or lens
-        
-        morl = elem.isMirror_;
-        if morl == 0
-            descr = 'Lens';
-        elseif morl == 1
-            descr = 'Mirror';
-        end
-        if elem.verbose == 1
-            fprintf('Element is a %s\n',descr);
-        end
-    end % of getisMirror(elem);
     
     function fl = getFocalLength(elem)
         % fl = getFocalLength(elem)
