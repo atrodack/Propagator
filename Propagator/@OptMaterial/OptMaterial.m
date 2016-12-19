@@ -311,7 +311,7 @@ classdef OptMaterial < matlab.mixin.Copyable
         
         function n = SellmeierDispersion_Air(OM,lambda_)
             % n = SellmeierDispersion_Si(OM)
-            % Internal function to compute index for Silicon
+            % Internal function to compute index for Air
             
             if nargin < 2
                 OM.convert2Micron;
