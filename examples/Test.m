@@ -26,22 +26,39 @@ E1 = OptElement(props);
 
 
 props2 = cell(8,1);
-props2{1,1} = 'Detector'; % name
-props2{2,1} = 2; % type
-props2{3,1} = [];
+props2{1,1} = 'Mirror'; % name
+props2{2,1} = 1; % type
+props2{3,1} = OM;
 props2{4,1} = 0; % focal length
 props2{5,1} = 273.2e-3; % z position
 props2{6,1} = 25.4e-3; % diameter
-props2{7,1} = 0; % zsag
+props2{7,1} = ones(1024); % zsag
 props2{8,1} = 0; % propagation type
 
 E2 = OptElement(props2);
+
+
+props3 = cell(8,1);
+props3{1,1} = 'Detector'; % name
+props3{2,1} = 2; % type
+props3{3,1} = [];
+props3{4,1} = 0; % focal length
+props3{5,1} = 273.2e-3; % z position
+props3{6,1} = 25.4e-3; % diameter
+props3{7,1} = 0; % zsag
+props3{8,1} = 0; % propagation type
+
+E3 = OptElement(props3);
 
 %% Optical System
 
 OS = OptSys();
 OS.name = 'Test Optical System';
 
-OS.addElement(E1);
-OS.addElement(E2);
+OS.addSequentialElement(E1);
+OS.addSequentialElement(E3);
 OS.getElementFNum(1);
+
+OS.addElement(E2,3);
+OS.removeElement(3);
+OS
