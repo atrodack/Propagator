@@ -349,22 +349,26 @@ classdef OptMaterial < matlab.mixin.Copyable
         function OM = getMetalData(OM,material_code)
             % OS = getMetalData(OS,material_code)
             % loads in data from Rakić 1998: n,k 0.2066-12.40 µm
-            
+            home_direc = pwd;
+
             switch material_code
                 case 8 % Aluminium
-                    load('/home/archdaemon/DATA/Propagator/Database/Aluminium.mat');
+                    filename = sprintf('%s/Propagator/Database/Aluminium.mat',home_direc);
+                    load(filename);
                     lambdalist = Material_data(:,1);
                     n = Material_data(:,2);
                     k = Material_data(:,3);
                     
                 case 9 % Gold
-                    load('/home/archdaemon/DATA/Propagator/Database/Gold.mat');
+                    filename = sprintf('%s/Propagator/Database/Gold.mat',home_direc);
+                    load(filename);
                     lambdalist = Material_data(:,1);
                     n = Material_data(:,2);
                     k = Material_data(:,3);
 
                 case 10 % Silver
-                    load('/home/archdaemon/DATA/Propagator/Database/Silver.mat');
+                    filename = sprintf('%s/Propagator/Database/Silver.mat',home_direc);
+                    load(filename);
                     lambdalist = Material_data(:,1);
                     n = Material_data(:,2);
                     k = Material_data(:,3);
