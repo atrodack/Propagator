@@ -19,9 +19,11 @@ classdef OptSys < matlab.mixin.Copyable
         numElements_ = 0; % number of elements in system
         f_number_; % F/# of system
         ELEMENTS_; % cell array of element cards
+        apertureStop;
         
         conjugations_ = zeros(1,1);
-        
+        pscale;
+        lambda_array_;
         
         % GPU properties
         useGPU; % use a GPU flag
@@ -65,19 +67,95 @@ classdef OptSys < matlab.mixin.Copyable
             
         end % of initOptSys
         
-        function OS = addElement(OS,elem)
-            % OS = addElement(OS,elem)
-            % adds and Element object to the optical system
+        function OS = addSequentialElement(OS,elem)
+            % OS = addSequentialElement(OS,elem)
+            % adds andElement object to the optical system located after
+            % the previous stored element
             
             if isa(elem,'OptElement')
                 OS.numElements_ = OS.numElements_ + 1;
-                OS.ELEMENTS_{OS.numElements_} = elem;
-                OS.setConjugations;
+                OS.ELEMENTS_{OS.numElements_,1} = elem;
+%                 OS.setConjugations; %maybe add in later
+                
+                if OS.verbose == 1
+                    fprintf('Element %s Added to Optical System\n',elem.name);
+                end
                 
             else
                 error('I do not understand anything but OptElement objects');
             end
+        end % of addSequentialElement
+        
+        function OS = addElement(OS,elem,order_num)
+            % OS = addElement(OS,elem,order_num)
+            % Adds an Element to the optical system in the location given
+            % in order_num
+            
+            if isa(elem,'OptElement') == 0
+                error('elem must be type OptElement');
+            end
+            
+            element_list = OS.ELEMENTS_;
+            tmpelement_list = cell(OS.numElements_ + 1,1);
+            
+            index = 1;
+            for ii = 1:length(tmpelement_list)
+                if isequal(ii,order_num) == 0
+                    tmpelement_list{ii} = element_list{index};
+                    index = index + 1;
+                else
+                    tmpelement_list{ii} = elem;
+                    
+                end
+            end
+            
+            OS.numElements_ = OS.numElements_ + 1;
+            OS.ELEMENTS_ = tmpelement_list;
+            
+            if OS.verbose == 1
+                fprintf('Element %s Added to Optical System at position %d\n',elem.name,order_num);
+            end;
+             
         end % of addElement
+        
+        
+        function OS = removeElement(OS,elem_num)
+            % OS = removeElement(OS,elem_num)
+            % removes and element from the Optical System
+            
+            element_list = OS.ELEMENTS_;
+            tmpelement_list = cell(OS.numElements_ - 1,1);
+            
+            selected_elem = element_list{elem_num};
+            prompt = sprintf('You have seleced element %s for removal\nIs this Correct?\nY/N [Y]: ',selected_elem.name);
+            choice = input(prompt,'s');
+            if isempty(choice)
+                choice = 'Y';
+            end
+            
+            if strcmpi(choice,'Y') % remove the element
+                element_list{elem_num} = [];
+                index = 1;
+                
+                for ii = 1:OS.numElements_
+                    if isempty(element_list{ii}) == 0
+                        tmpelement_list{index} = element_list{ii};
+                        index = index + 1;
+                    end
+                end
+                OS.numElements_ = OS.numElements_ - 1;
+                OS.ELEMENTS_ = tmpelement_list;
+                
+                if OS.verbose == 1
+                    fprintf('Element %s Removed from Optical System\n',selected_elem.name);
+                end
+                
+            else
+                fprintf('Element %s has not been removed\n',selected_elem.name);
+            end
+                        
+            
+        end % of removeElement
                 
         
         function conjugations = setConjugations(OS)
