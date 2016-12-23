@@ -22,7 +22,7 @@ classdef OptElement < matlab.mixin.Copyable
         type_; % element type ---> see set_type method
         material_;
         focal_length_; % focal length in meters
-        z_position_; % position from previous element along optical axis
+        z_position_; % position along optical axis (pupil is z = 0)
         diameter_; % diameter of element in meters
         
         % Map of Optic Surface
@@ -31,8 +31,8 @@ classdef OptElement < matlab.mixin.Copyable
         phasefac_; % factor used to convert zsag_ into phase
         
         % Propagation Type
-        % 0 = Fourier Optics, 1 = Fraunhofer, 2 = Fresnel
-        propagation_type;
+        % 0 = Fresnel Propagation needed, 1 = Fourier Transform
+        isFocal;
                 
     end % of protected properties
     
@@ -52,7 +52,7 @@ classdef OptElement < matlab.mixin.Copyable
 %             PROPERTIES{5,1} = z_position (m)
 %             PROPERTIES{6,1} = diameter (m)
 %             PROPERTIES{7,1} = zsag (m) [file path or matrix]
-%             PROPERTIES{8,1} = propagation code
+%             PROPERTIES{8,1} = isFocal flag
             
             if size(PROPERTIES) == [8,1]
                 if iscell(PROPERTIES) == 1
@@ -71,7 +71,7 @@ classdef OptElement < matlab.mixin.Copyable
             elem.set_z_position(A{5,1});
             elem.set_diameter(A{6,1});
             elem.set_zsag(A{7,1});
-            elem.set_propagation_type(A{8,1});
+            elem.set_isFocal(A{8,1});
             
             
             
@@ -137,8 +137,11 @@ classdef OptElement < matlab.mixin.Copyable
     function elem = set_z_position(elem,z)
         % elem = set_z_position(elem,z)
         % sets the z position of the element to z (in meters)
-        
-        elem.z_position_ = z;
+        if elem.type_ == 0
+            elem.z_position_ = 0;
+        else
+            elem.z_position_ = z;
+        end
     end % of set_z_position
     
     function elem = set_diameter(elem,D)
@@ -169,15 +172,13 @@ classdef OptElement < matlab.mixin.Copyable
         elem.zsag_ = A;
     end % of set_zsag
     
-    function elem = set_propagation_type(elem,val)
-        % elem = set_propagation_type
+    function elem = set_isFocal(elem,val)
+        % elem = set_isFocal
         % sets the propagation type:
-        % val = 0 --> Fourier Optics
-        % val = 1 --> Fraunhofer
-        % val = 2 --> Fresnel
-        
-        elem.propagation_type = val;
-    end % of set_propagation_type
+        % val = 0 --> Fresnel
+        % val = 1 --> Fourier Transform
+        elem.isFocal = val;
+    end % of set_isFocal
     
     function elem = set_name(elem,name)
         % elem = set_name(elem,name)
@@ -290,17 +291,15 @@ classdef OptElement < matlab.mixin.Copyable
         zsag = elem.zsag_;
     end % of getZsag
     
-    function propagation_method = getPropagationMethod(elem)
+    function isFocal = getPropagationMethod(elem)
         % propagation_method = getPropagationMethod(elem)
         % returns the method to be used for propagation
         
-        propagation_method = elem.propagation_type;
-        if propagation_method == 0
-            descr = 'Fourier Optics';
-        elseif propagation_method == 1
-            descr = 'Fraunhofer';
-        elseif propagation_method == 2
-            descr = 'Fresnel';
+        isFocal = elem.isFocal;
+        if isFocal == 0
+            descr = 'Fresnel Propagation';
+        elseif isFocal == 1
+            descr = 'Fourier Transform for focusing';
         end
         if elem.verbose == 1
             fprintf('The Propagation Method is %s\n',descr);
