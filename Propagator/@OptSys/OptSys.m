@@ -11,7 +11,8 @@ classdef OptSys < matlab.mixin.Copyable
     
     properties(GetAccess='public',SetAccess='public')
         name; % give a name to the structure/system
-        
+        savefile = 1;
+        verbose = 1; % print extra info
         
     end % of public properties
     
@@ -54,8 +55,8 @@ classdef OptSys < matlab.mixin.Copyable
         
         
         % Misc
-        verbose = 1; % print extra info
         interpolate_method = [];
+        
         
     end % of protected properties
     
@@ -247,7 +248,7 @@ classdef OptSys < matlab.mixin.Copyable
             OK = false(3,1);
             % Check that given Elements exist
             if OS.numElements_ >= starting_elem
-                if OS.numElements_ <= ending_elem
+                if ending_elem <= OS.numElements_
                     OK(1,1) = true;
                 else
                     fprintf('\n\n');
@@ -333,12 +334,15 @@ classdef OptSys < matlab.mixin.Copyable
         end % of planewave
         
         
-        function OS = AmpPhase2WF(OS)
+        function OS = AmpPhase2WF(OS,ind)
             % OS = AmpPhase2WF(OS)
             % Sets the WF as the combination of the amplitude and phase
             % components
+            if nargin < 2
+                ind = 1;
+            end
             
-            OS.WF = OS.WFamp .* exp(-1i * OS.WFphase);
+            OS.WF(:,:,ind) = OS.WFamp(:,:,ind) .* exp(-1i * OS.WFphase(:,:,ind));
         end % of AmpPhase2WF
         
         
@@ -429,6 +433,113 @@ classdef OptSys < matlab.mixin.Copyable
                 
         end % of WFReIm2AmpPhase
         
+        function WFout = ApplyElement(OS,elem_num,WFin,lambda)
+            % OS = ApplyElement(OS,elem_num,WFin)
+            % % Applys element to current wavefront
+            
+            if nargin < 3
+                error('Must include the number of the element to apply (elem_num) and the complex wavefront to apply it to');
+            elseif nargin < 4
+                lambda = OS.lambda0_;
+            end
+            
+            % Store element
+            elem = OS.ELEMENTS_{elem_num};
+            
+            % Get the type of element
+            type = elem.type_;
+            
+            switch type
+                case 0 % System Pupil
+                    if elem.amponly ~= 0 % amplitude mask
+                        WFout = WFin .* elem.zsag_;
+                    else % phase mask
+                        if isempty(elem.phasefac_) == 1
+                            elem.set_phasefactor(lambda);
+                        end
+                        WFout = WFin .* exp(-1i * elem.phasefac_ .* elem.zsag_);
+                    end
+                    
+                case 1 % Lens
+                    if isempty(elem.phasefac_) == 1
+                        elem.set_phasefactor(lambda);
+                    end
+                    WFout = WFin .* exp(-1i * elem.phasefac_ .* elem.zsag_);
+                    
+                case 2 % Mirror
+                    if isempty(elem.phasefac_) == 1
+                        elem.set_phasefactor(lambda);
+                    end
+                    WFout = WFin .* exp(-1i * elem.phasefac_ .* elem.zsag_);
+                    
+                case 3 % Aspheric Lens
+                    if isempty(elem.phasefac_) == 1
+                        elem.set_phasefactor(lambda);
+                    end
+                    WFout = WFin .* exp(-1i * elem.phasefac_ .* elem.zsag_);
+                    
+                case 4 % Aspheric Mirror
+                    if isempty(elem.phasefac_) == 1
+                        elem.set_phasefactor(lambda);
+                    end
+                    WFout = WFin .* exp(-1i * elem.phasefac_ .* elem.zsag_);
+                    
+                case 5 % Pupil Mask
+                    if elem.amponly ~= 0 % amplitude mask
+                        WFout = WFin .* elem.zsag_;
+                    else % phase mask
+                        if isempty(elem.phasefac_) == 1
+                            elem.set_phasefactor(lambda);
+                        end
+                        WFout = WFin .* exp(-1i * elem.phasefac_ .* elem.zsag_);
+                    end
+                    
+                case 6 % Focal Plane Mask
+                    if elem.amponly ~= 0 % amplitude mask
+                        WFout = WFin .* elem.zsag_;
+                    else % phase mask
+                        if isempty(elem.phasefac_) == 1
+                            elem.set_phasefactor(lambda);
+                        end
+                        WFout = WFin .* exp(-1i * elem.phasefac_ .* elem.zsag_);
+                    end
+                    
+                case 7 % Detector
+                    
+                otherwise
+                    error('Unknown Element type');
+            end
+            
+            
+        end % of ApplyElement
+        
+        
+        function OS = computePSF(OS,WFin)
+            % OS = computePSF(OS,WFin)
+            
+            sz = size(WFin);
+            
+            for jj = 1:sz(3)
+                WFfocus(:,:,jj) = fftshift(fft2(fftshift(WFin(:,:,jj))));
+                WFreal(:,:,jj) = real(WFfocus(:,:,jj));
+                WFimag(:,:,jj) = imag(WFfocus(:,:,jj));
+                [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = OS.WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
+                OS.AmpPhase2WF(jj);
+                
+                if OS.verbose == 1
+                            figure(9999)
+                            imagesc(OS.WFamp(:,:,jj));
+                            axis square;
+                            axis xy;
+                            colorbar;
+                            colormap(gray(256));
+                            title(sprintf('WF00%damp, lambda = %g',jj,OS.lambda_array_(jj)));
+                            drawnow;
+                end
+            end
+            
+        end % computePSF
+        
         
         function OS = PropagateSystem(OS, WFin, starting_elem, ending_elem)
             % OS = PropagateSystem(OS, WFin, starting_elem, ending_elem)
@@ -436,10 +547,7 @@ classdef OptSys < matlab.mixin.Copyable
             % starting_elem + 1, starting_elem +2, ..., ending_elem].
             %
             % WFin should be a complex amplitude (amp .* exp(-i*phase))
-            %
-            % TO DO:
-            % Add in applying of elements
-            % Convert from WF re/im to amp/phase
+ 
             
             [numLambdas, propdist] = OS.initPropagation(starting_elem, ending_elem);
             
@@ -450,33 +558,50 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
             WFout = zeros(size(WFin,1),size(WFin,2),numLambdas);
+            WFtmp = WFout;
             
             for ii = starting_elem:ending_elem
                 if ii ~= ending_elem
-                for jj = 1:numLambdas
-                    WFout(:,:,jj) = OptSys.FresnelPropagateWF(WFin(:,:,jj),propdist(ii),OS.pscale_,lambda(jj));
-                    
-                    if OS.verbose == 1
-                        figure(9999)
-                        imagesc(real(WFout(:,:,jj)));
-                        axis square;
-                        axis xy;
-                        colorbar;
-                        title(sprintf('WF00%d, lambda = %g',ii,lambda(jj)));
-                        drawnow;
+                    for jj = 1:numLambdas
+                        WFtmp(:,:,jj) = OS.ApplyElement(ii,WFin(:,:,jj),lambda(jj));
+                        WFout(:,:,jj) = OptSys.FresnelPropagateWF(WFtmp(:,:,jj),propdist(ii),OS.pscale_,lambda(jj));
+                        
+                        WFreal(:,:,jj) = real(WFout(:,:,jj));
+                        WFimag(:,:,jj) = imag(WFout(:,:,jj));
+                        [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = OS.WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
+                        
+                        if OS.verbose == 1
+                            figure(9999)
+                            imagesc(OS.WFamp(:,:,jj));
+                            axis square;
+                            axis xy;
+                            colorbar;
+                            colormap(gray(256));
+                            title(sprintf('WF00%damp, lambda = %g',ii,lambda(jj)));
+                            drawnow;
+                        end
                     end
-                end
                 else % last element
                     if OS.ELEMENTS_{ii}.isFocal == true
-                        fprintf('Computing PSF using FFT of WF\n');
-                        fprintf('Not currently supported...\n');
+                        fprintf('Computing PSF using FFT of WF0%d\n',ii);
+                        OS.computePSF(WFout);
                     else
                         fprintf('At last element\n');
                     end
                 end
+                
+                
+                if OS.savefile == 1
+                    OptSys.saveWFfits(OS.WFamp, OS.WFphase, ii);
+                end
+                
+                % Move Calculated Wavefront to WFin to keep propagating
+                WFin = WFout;
             end
             
-            WFin = WFout;
+            
+
+        
                     
             
         end % of PropagateSystem
@@ -534,7 +659,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             OS.useGPU = 0;
             c = parcluster('local'); % build the 'local' cluster object
-            OS.nWorkers = c.NumWorkers % get the number of CPU cores from it
+            OS.nWorkers = c.NumWorkers; % get the number of CPU cores from it
         end % useCPU    
         
     end % of methods
@@ -571,10 +696,6 @@ classdef OptSys < matlab.mixin.Copyable
                     tmpre(ii1+1) = re*cos(angle) - im*sin(angle);
                     tmpim(ii1+1) = re*sin(angle) + im*cos(angle);
                     
-%                     figure(1);
-%                     imagesc(tmpre);
-%                     title(sprintf('jj = %d, ii = %d',jj,ii));
-%                     drawnow;
                 end
             end
             tmp = tmpre + 1i*tmpim;
@@ -582,21 +703,39 @@ classdef OptSys < matlab.mixin.Copyable
             
         end % of FresnelPropagateWF
         
+        function saveWFfits(WFamp,WFphase,ind)
+            % saveWFfits(WFamp,WFphase,ind)
+            % saves WFamp and WFphase as fits files in Propfile directory.
+            % If the directory doesn't exist, it is created.
+            
+            val = exist('Propfiles', 'dir');
+            if val == 7
+                filenameamp = sprintf('WF0%d_amp.fits',ind);
+                filenamephase = sprintf('WF0%d_phase.fits',ind);
+                current_dir = pwd;
+                newdir = sprintf('%s/Propfiles',current_dir);
+                cd(newdir);
+                fitswrite(WFamp,filenameamp);
+                fitswrite(WFphase,filenamephase);
+                cd(current_dir);
+            else
+                mkdir Propfiles
+                val = exist('Propfiles', 'dir');
+                if val == 7
+                    filenameamp = sprintf('WF0%d_amp.fits',ind);
+                    filenamephase = sprintf('WF0%d_phase.fits',ind);
+                    current_dir = pwd;
+                    newdir = sprintf('%s/Propfiles',current_dir);
+                    cd(newdir);
+                    fitswrite(WFamp,filenameamp);
+                    fitswrite(WFphase,filenamephase);
+                    cd(current_dir);
+                else
+                    error('Problem Creating Propfiles Directory');
+                end
+            end
+        end % of saveWFfits
+            
         
     end % of static methods
 end
-
-
-%% IDEAS
-% build a cell array of type Element objects
-% use info from Element structures to simulate the optical system
-
-% This class should do all the math, unless it is just a simple thing that
-% an element should know
-
-% Propagation type to be used currently stored in element
-% This might change. All the actual propagation should occur here
-% interpolation method is also set in element. this could change as well
-
-% Element type and lens/mirror stored in element. This should help making
-% separate propagation methods for certain items doable (if necessary)
