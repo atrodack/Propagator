@@ -27,6 +27,14 @@ classdef OptElement < matlab.mixin.Copyable
         
         % Map of Optic Surface
         zsag_; % (in meters)
+        amponly = 1; % flag for determining if Mask is phase or amplitude
+                     % Defaults to amplitude, but is set by input
+                     % focal_length_ for Mask types anyway. If not 0, then
+                     % it is considered amplitude only (NOTE: This means
+                     % mistakenly setting a focal length will make it
+                     % amplitude mask. This follows the assumption that the
+                     % user should take more care to ensure correctness if
+                     % the mask is meant to be a phase mask.
         
         phasefac_; % factor used to convert zsag_ into phase
         
@@ -45,14 +53,14 @@ classdef OptElement < matlab.mixin.Copyable
             % If something is unknown or to be set later, leave that
             % position in A empty:
             %
-%             PROPERTIES{1,1} = name
-%             PROPERTIES{2,1} = type (0-8)
-%             PROPERTIES{3,1} = material (0-10)
-%             PROPERTIES{4,1} = focal length (m)
-%             PROPERTIES{5,1} = z_position (m)
-%             PROPERTIES{6,1} = diameter (m)
-%             PROPERTIES{7,1} = zsag (m) [file path or matrix]
-%             PROPERTIES{8,1} = isFocal flag
+%           PROPERTIES{1,1} = name
+%           PROPERTIES{2,1} = type (0-7)
+%           PROPERTIES{3,1} = material (0-10)
+%           PROPERTIES{4,1} = focal length (m) *sets amponly for Mask types
+%           PROPERTIES{5,1} = z_position (m)
+%           PROPERTIES{6,1} = diameter (m)
+%           PROPERTIES{7,1} = zsag (m) [file path or matrix]
+%           PROPERTIES{8,1} = isFocal flag
             
             if size(PROPERTIES) == [8,1]
                 if iscell(PROPERTIES) == 1
@@ -85,17 +93,41 @@ classdef OptElement < matlab.mixin.Copyable
     function elem = set_type(elem,type)
         % elem = set_type(elem,type)
         % sets the type of optical element
+        % Masks default to amplitude only.
+        %
+        % Types Supported
+        % ===============
         % 0: System Pupil
-        % 1: Normally Behaving Lens/Mirror
-        % 2: Detector
-        % 3: PIAA
-        % 4: FPM
-        % 5: Lyot Stop
-        % 6: Apdoizer
-        % 7: DM
-        % 8: WFS -- likely to break this into specific WFS
+        % 1: Lens
+        % 2: Mirror
+        % 3: Aspheric Lens
+        % 4: Aspheric Mirror
+        % 5: Pupil Mask
+        % 6: Focal Plane Mask
+        % 7: Detector
         
         elem.type_ = type;
+        switch type % have this if needed
+                case 0 % System Pupil
+                    
+                case 1 % Lens
+                    
+                case 2 % Mirror
+                    
+                case 3 % Aspheric Lens
+                    
+                case 4 % Aspheric Mirror
+                    
+                case 5 % Pupil Mask
+                    
+                case 6 % Focal Plane Mask
+                    
+                case 7 % Detector
+                    
+                otherwise
+                    error('Unknown Element type');
+        end
+            
     end % of set_type
     
     function elem = set_material(elem,MATERIAL)
@@ -130,8 +162,31 @@ classdef OptElement < matlab.mixin.Copyable
     function elem = set_focal_length(elem,f)
         % elem = set_focal_length(elem,f)
         % sets the focal length of the element to f (in meters)
+        % If the element is a mask, use this as a flag to set if the mask
+        % is amplitude or phase mask (1 for amp, 0 for phase).
         
-        elem.focal_length_ = f;
+        switch elem.type_
+                case 0 % System Pupil
+                    elem.amponly = f;
+                    
+                case 1 % Lens
+                    elem.focal_length_ = f;
+                case 2 % Mirror
+                    elem.focal_length_ = f;
+                case 3 % Aspheric Lens
+                    elem.focal_length_ = f;
+                case 4 % Aspheric Mirror
+                    elem.focal_length_ = f;
+                case 5 % Pupil Mask
+                    elem.amponly = f;
+                case 6 % Focal Plane Mask
+                    elem.amponly = f;
+                case 7 % Detector
+                    
+                otherwise
+                    error('Unknown Element type');
+        end
+        
     end % of set_focal_length
     
     function elem = set_z_position(elem,z)
@@ -160,13 +215,13 @@ classdef OptElement < matlab.mixin.Copyable
         
         if ischar(A) == 1
             if elem.verbose == 1
-                fprintf('Reading FITS file %s into zsag\n',A);
+                fprintf('Reading FITS file %s into zsag\n\n',A);
             end
             A = fitsread(A);
             
         elseif ismatrix(A)
             if elem.verbose == 1
-                fprintf('Loading matrix into zsag\n');
+                fprintf('Loading matrix into zsag\n\n');
             end
         end
         elem.zsag_ = A;
@@ -241,21 +296,19 @@ classdef OptElement < matlab.mixin.Copyable
         if type == 0
             descr = 'System Pupil';
         elseif type == 1
-            descr = 'Normally Behaving Lens/Mirror';
+            descr = 'Lens';
         elseif type == 2
-            descr = 'Detector';
+            descr = 'Mirror';
         elseif type == 3
-            descr = 'PIAA';
+            descr = 'Aspheric Lens';
         elseif type == 4
-            descr = 'FPM';
+            descr = 'Aspheric Mirror';
         elseif type == 5
-            descr = 'Lyot Stop';
+            descr = 'Pupil Plane Mask';
         elseif type == 6
-            descr = 'Apdoizer';
+            descr = 'Focal Plane Mask';
         elseif type == 7
-            descr = 'DM';
-        elseif type == 8
-            descr = 'WFS';
+            descr = 'Detector';
         end
         if elem.verbose == 1
             fprintf('Element is a %s \n',descr);
