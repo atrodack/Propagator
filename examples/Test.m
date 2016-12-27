@@ -5,11 +5,12 @@ clear all; clc;
 %% Material Set up
 
 lambda = linspace(550e-9 - 550e-9 /50, 550e-9 + 550e-9 / 50, 25); 
+lambda0 = 550e-9;
 OM = OptMaterial(2,lambda);
-phasefac = OM.ComputePhaseFactor(550e-9);
 
 
-%% Set up Example Optical Element
+
+%% Set up Example Optical Elements
 
 A = 'pup_1024.fits';
 props = cell(8,1);
@@ -65,7 +66,8 @@ E4 = OptElement(props4);
 OS = OptSys();
 OS.name = 'Test Optical System';
 OS.setLambdaarray(lambda);
-OS.setCentralWavelength(550e-9);
+% OS.setCentralWavelength(lambda);
+% OS.setLambdaarray();
 OS.setPscale(0.00011);
 
 
@@ -80,6 +82,5 @@ for ii = 1:length(lambda)
     field(:,:,ii) = field1;
 end;
 
-% Not yet working fully
 OS.PropagateSystem(field, 1, 4);
 
