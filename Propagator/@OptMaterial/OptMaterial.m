@@ -432,6 +432,11 @@ classdef OptMaterial < matlab.mixin.Copyable
 
         end % of ComputePhaseFactor
         
+        function descr = describe(OM)
+            % descr = describe(OM)
+            
+            descr = sprintf('%s with Wavelength Band [%0.3f %0.3f]',OM.material.name, OM.material.band);
+        end % of describe    
         
     end % of methods
     
