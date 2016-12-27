@@ -367,8 +367,71 @@ classdef OptElement < matlab.mixin.Copyable
         % returns the f/# of the element
         
         fnum = elem.getFocalLength / elem.getDiameter;
-    end % getFNumber
+    end % of getFNumber
     
+    function descr = describe(elem)
+        % descr = describe(elem)
+        
+        if elem.verbose == 1
+            flag = true;
+            elem.verbose = 0;
+        end
+        
+        objtype = 'OptElement';
+        
+        type = elem.type_;
+        if type == 0
+            elemtype = 'System Pupil';
+        elseif type == 1
+            elemtype = 'Lens';
+        elseif type == 2
+            elemtype = 'Mirror';
+        elseif type == 3
+            elemtype = 'Aspheric Lens';
+        elseif type == 4
+            elemtype = 'Aspheric Mirror';
+        elseif type == 5
+            elemtype = 'Pupil Plane Mask';
+        elseif type == 6
+            elemtype = 'Focal Plane Mask';
+        elseif type == 7
+            elemtype = 'Detector';
+        end
+        
+        
+        zpos = elem.z_position_;
+        sz = size(elem.zsag_);
+        
+        descr = sprintf('%s Object %s:\nElement is a %s at %0.3f meters downstream\n',objtype,elem.name,elemtype,zpos);
+        if flag == true
+            elem.verbose = 1;
+        end
+        
+    end % of describe
+    
+    function show(elem)
+        % show(elem)
+        % Plots matrix stored in zsag_
+        
+        if isreal(elem.zsag_) == 1
+            figure()
+            imagesc(elem.zsag_)
+            plotUtils(sprintf('Sag of Element %s',elem.name));
+        else
+            re = real(elem.zsag_);
+            im = imag(elem.zsag_);
+            [sagamp,sagphase] = WFReIm2AmpPhase(re,im);
+            figure();
+            subplot(1,2,1)
+            imagesc(sagamp);
+            plotUtils(sprintf('Sag Amplitude of Element %s',elem.name));
+            subplot(1,2,2)
+            imagesc(sagphase);
+            plotUtils(sprintf('Sag Phase of Element %s',elem.name));
+            
+        end
+        
+    end % of show
     
     
     end % of methods
