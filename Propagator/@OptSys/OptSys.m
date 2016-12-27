@@ -37,12 +37,10 @@ classdef OptSys < matlab.mixin.Copyable
         % 3) Element Position
         % 4) z-sag in meters
         % 5) Type of propagation to use (could change)
-           
+        
         % Wavefront
         WFamp;
         WFphase;
-        WFreal;
-        WFimag;
         WF;
         
         % GPU properties
@@ -102,7 +100,7 @@ classdef OptSys < matlab.mixin.Copyable
             if isa(elem,'OptElement')
                 OS.numElements_ = OS.numElements_ + 1;
                 OS.ELEMENTS_{OS.numElements_,1} = elem;
-%                 OS.setConjugations; %maybe add in later
+                %                 OS.setConjugations; %maybe add in later
                 
                 if OS.verbose == 1
                     fprintf('Element %s Added to Optical System\n',elem.name);
@@ -143,7 +141,7 @@ classdef OptSys < matlab.mixin.Copyable
             if OS.verbose == 1
                 fprintf('Element %s Added to Optical System at position %d\n',elem.name,order_num);
             end;
-             
+            
         end % of addElement
         
         
@@ -182,7 +180,7 @@ classdef OptSys < matlab.mixin.Copyable
                 fprintf('Element %s has not been removed\n',selected_elem.name);
             end
         end % of removeElement
-                
+        
         
         function OS = setPscale(OS,val)
             % OS = setPscale(OS,val)
@@ -193,14 +191,34 @@ classdef OptSys < matlab.mixin.Copyable
         function OS = setLambdaarray(OS,lambdalist)
             % OS = setLambdaarray(OS,lambdalist)
             
-            OS.lambda_array_ = lambdalist;
+            if nargin < 2
+                if isempty(OS.lambda0_) == 0
+                    OS.lambda_array_ = OS.lambda0_;
+                else
+                    error('Need to include lambdalist or set central wavelength');
+                end
+            else
+                OS.lambda_array_ = lambdalist;
+                OS.setCentralWavelength();
+            end
         end % of setLambdaarray
         
         
         function OS = setCentralWavelength(OS,lambda)
             % OS = setCentralWavelength(OS,lambda)
             
-            OS.lambda0_ = lambda;
+            if nargin < 2
+                if isempty(OS.lambda_array_) == 0
+                    len = length(OS.lambda_array_);
+                    ind = ceil(len/2);
+                    OS.lambda0_ = OS.lambda_array_(1,ind);
+                else
+                    error('Need to include lambda or set set lambda_array');
+                end
+            else
+                OS.lambda0_ = lambda;
+                
+            end
         end % of setCentralWavelength
         
         
@@ -233,7 +251,7 @@ classdef OptSys < matlab.mixin.Copyable
             end
             OS.gridsize_ = sz;
         end % of setGridsize
-           
+        
         
         %% Propagation Methods
         
@@ -302,7 +320,7 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
         end % initPropagation
-         
+        
         
         function planewave = planewave(OS,amplitude,theta)
             % OS = planewave(OS,amplitude,theta)
@@ -329,7 +347,7 @@ classdef OptSys < matlab.mixin.Copyable
                 OS.AmpPhase2WF;
                 planewave = OS.WF;
             else  % off-axis
-                error('Not supported yet'); 
+                error('Not supported yet');
             end
         end % of planewave
         
@@ -366,72 +384,10 @@ classdef OptSys < matlab.mixin.Copyable
         end % of ReImWF
         
         
-        function [WFreal,WFimag] = WFAmpPhase2ReIm(OS,WFamp,WFphase)
-            % [WFreal,WFimag] = WFAmpPhase2ReIm(OS,WFamp,WFphase)
-            % sets the real and imaginary parts of the wavefront from
-            % amplitude and phase components. If no amplitude and phase
-            % components are given, act on stored ones, and store resutls
-            
-            if nargin < 2
-                sz = size(OS.WF);
-                for ii = 1:sz(1)
-                    for jj = 1:sz(2)
-                        amp = OS.WFamp(ii,jj);
-                        phase = OS.WFphase(ii,jj);
-                        OS.WFreal(ii,jj) = amp*cos(phase);
-                        OS.WFimag(ii,jj) = amp*sin(phase);
-                    end
-                end
-            elseif nargin == 3
-                sz = size(WFamp);
-                WFreal = zeros(sz(1),sz(2));
-                WFimag = zeros(sz(1),sz(2));
-                for ii = 1:sz(1)
-                    for jj = 1:sz(2)
-                        amp = WFamp(ii,jj);
-                        phase = WFphase(ii,jj);
-                        WFreal(ii,jj) = amp*cos(phase);
-                        WFimag(ii,jj) = amp*sin(phase);
-                    end
-                end
-            end
-        end % of WF2ReIm
         
         
-        function [WFamp,WFphase] = WFReIm2AmpPhase(OS,WFreal,WFimag)
-            % [WFamp,WFphase] = WFReIm2AmpPhase(OS,WFreal,WFimag)
-            % Converts real and imaginary parts of WF to amplitude and
-            % phase.
-            
-            if nargin < 2
-                sz = size(OS.WF);
-                for ii = 1:sz(1)
-                    for jj = 1:sz(2)
-                        re = OS.WFreal(ii,jj);
-                        im = OS.WFimag(ii,jj);
-                        amp = sqrt(re*re + im*im);
-                        phase = atan2(im,re);
-                        OS.WFamp(ii,jj) = amp;
-                        OS.WFphase(ii,jj) = phase;
-                    end
-                end
-            elseif nargin == 3
-                sz = size(WFreal);
-                WFamp = zeros(sz(1),sz(2));
-                WFphase = zeros(sz(1),sz(2));
-                for ii = 1:sz(1)
-                    for jj = 1:sz(2)
-                        re = WFreal(ii,jj);
-                        im = WFimag(ii,jj);
-                        amp = sqrt(re*re + im*im);
-                        phase = atan2(im,re);
-                        WFamp(ii,jj) = amp;
-                        WFphase(ii,jj) = phase;
-                    end
-                end
-            end
-                
-        end % of WFReIm2AmpPhase
+        
+        
         
         function WFout = ApplyElement(OS,elem_num,WFin,lambda)
             % OS = ApplyElement(OS,elem_num,WFin)
@@ -518,23 +474,29 @@ classdef OptSys < matlab.mixin.Copyable
             % OS = computePSF(OS,WFin)
             
             sz = size(WFin);
+            if length(sz) == 2
+                sz(3) = 1;
+            end;
+            
+            % Initialize
+            WFfocus = zeros(sz(1),sz(2),sz(3));
+            WFreal = WFfocus;
+            WFimag = WFfocus;
             
             for jj = 1:sz(3)
                 WFfocus(:,:,jj) = fftshift(fft2(fftshift(WFin(:,:,jj))));
                 WFreal(:,:,jj) = real(WFfocus(:,:,jj));
                 WFimag(:,:,jj) = imag(WFfocus(:,:,jj));
-                [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = OS.WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
+                [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
                 OS.AmpPhase2WF(jj);
+                psfa0 = abs(OS.WF).^2;
                 
+                % Plot
                 if OS.verbose == 1
-                            figure(9999)
-                            imagesc(OS.WFamp(:,:,jj));
-                            axis square;
-                            axis xy;
-                            colorbar;
-                            colormap(gray(256));
-                            title(sprintf('WF00%damp, lambda = %g',jj,OS.lambda_array_(jj)));
-                            drawnow;
+                    figure(99999)
+                    imagesc(psfa0(:,:,jj));
+                    plotUtils(sprintf('PSFa0, lambda = %g',OS.lambda_array_(jj)));
+                    drawnow;
                 end
             end
             
@@ -547,8 +509,8 @@ classdef OptSys < matlab.mixin.Copyable
             % starting_elem + 1, starting_elem +2, ..., ending_elem].
             %
             % WFin should be a complex amplitude (amp .* exp(-i*phase))
- 
             
+            fprintf('\n'); 
             [numLambdas, propdist] = OS.initPropagation(starting_elem, ending_elem);
             
             if numLambdas == 1
@@ -557,42 +519,88 @@ classdef OptSys < matlab.mixin.Copyable
                 lambda = OS.lambda_array_;
             end
             
+            % Initializations
             WFout = zeros(size(WFin,1),size(WFin,2),numLambdas);
             WFtmp = WFout;
+            WFreal = WFout;
+            WFimag = WFout;
             
+            % Loop over given elements
             for ii = starting_elem:ending_elem
-                if ii ~= ending_elem
+                fprintf('Applying Element %s\n',OS.ELEMENTS_{ii}.name);
+                % The last element is different (it will have no propdist)
+                if ii ~= ending_elem 
+                    
+                    % Loop over wavelengths
                     for jj = 1:numLambdas
+                        
+                        % Apply the element to the Input Wavefront
                         WFtmp(:,:,jj) = OS.ApplyElement(ii,WFin(:,:,jj),lambda(jj));
+                        
+                        % Make Wavefront Incident on Starting element prior to Propagation Viewable
+                        if ii == starting_elem
+                            
+                            % Only save for 1 wavelength
+                            if jj == 1
+                                % Store Real and Imaginary Parts of Wavefront
+                                WFreal(:,:,jj) = real(WFtmp(:,:,jj));
+                                WFimag(:,:,jj) = imag(WFtmp(:,:,jj));
+                                
+                                % Convert to Amplitude and Phase
+                                [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
+                                
+                                % Plot WF After Starting Element, before propagation
+                                if OS.verbose == 1
+                                    figure(9999)
+                                    imagesc(OS.WFamp(:,:,jj));
+                                    plotUtils(sprintf('WF00%damp, lambda = %g',ii-1,lambda(jj)));
+                                    drawnow;
+                                end
+                                
+                                % Save It
+                                if OS.savefile == 1
+                                    OptSys.saveWFfits(OS.WFamp, OS.WFphase, ii-1);
+                                end
+                            end
+                        end
+                        
+                        % Do the Fresnel Propagation
                         WFout(:,:,jj) = OptSys.FresnelPropagateWF(WFtmp(:,:,jj),propdist(ii),OS.pscale_,lambda(jj));
                         
+                        % Store Real and Imaginary Parts of Wavefront
                         WFreal(:,:,jj) = real(WFout(:,:,jj));
                         WFimag(:,:,jj) = imag(WFout(:,:,jj));
-                        [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = OS.WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
                         
+                        % Convert to Amplitude and Phase
+                        [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
+                        
+                        % Plot Propagated Wavefront
                         if OS.verbose == 1
-                            figure(9999)
+                            figure(9999+ii)
                             imagesc(OS.WFamp(:,:,jj));
-                            axis square;
-                            axis xy;
-                            colorbar;
-                            colormap(gray(256));
-                            title(sprintf('WF00%damp, lambda = %g',ii,lambda(jj)));
+                            plotUtils(sprintf('WF00%damp, lambda = %g',ii,lambda(jj)));
                             drawnow;
                         end
                     end
-                else % last element
+                    
+                    % Save it
+                    if OS.savefile == 1
+                        OptSys.saveWFfits(OS.WFamp, OS.WFphase, ii);
+                    end
+                    
+                else % last element, isn't applied, just checked for focal
+                    
+                    % If the last element is focal, focus the WF
                     if OS.ELEMENTS_{ii}.isFocal == true
                         fprintf('Computing PSF using FFT of WF0%d\n',ii);
                         OS.computePSF(WFout);
+                        
+                        if OS.savefile == 1
+                            OptSys.savePSFfits(OS.WFamp, OS.WFphase, ii);
+                        end
                     else
                         fprintf('At last element\n');
                     end
-                end
-                
-                
-                if OS.savefile == 1
-                    OptSys.saveWFfits(OS.WFamp, OS.WFphase, ii);
                 end
                 
                 % Move Calculated Wavefront to WFin to keep propagating
@@ -600,9 +608,9 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
             
-
-        
-                    
+            
+            
+            
             
         end % of PropagateSystem
         
@@ -617,7 +625,7 @@ classdef OptSys < matlab.mixin.Copyable
             if OS.nGPUs == 1
                 OS.DEVICES{1} = gpuDevice(1);
                 OS.useGPU = 1;  % initialize to use GPU if there is one
-
+                
             elseif OS.nGPUs == 2
                 OS.DEVICES{2} = gpuDevice(2);
                 OS.DEVICES{1} = gpuDevice(1);
@@ -642,14 +650,14 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
         end % of initGPU
-
+        
         
         function mem = GPUavailableMem(OS)
             % mem = GPUavailableMem(OS)
             % Returns the available memory on the active GPU
             
             mem = OS.DEVICES{1}.AvailableMemory;
-                
+            
             
         end % of GPUavailableMem
         
@@ -660,7 +668,7 @@ classdef OptSys < matlab.mixin.Copyable
             OS.useGPU = 0;
             c = parcluster('local'); % build the 'local' cluster object
             OS.nWorkers = c.NumWorkers; % get the number of CPU cores from it
-        end % useCPU    
+        end % useCPU
         
     end % of methods
     
@@ -670,7 +678,7 @@ classdef OptSys < matlab.mixin.Copyable
         function WFout = FresnelPropagateWF(WFin, propdist, pscale, lambda)
             % WFout = FresnelPropagateWF(WFin, propdist, pscale, lambda)
             % Fresnel Propagates a wavefront
-        
+            
             % Initializations
             naxes0 = size(WFin,1);
             naxes1 = size(WFin,2);
@@ -735,7 +743,41 @@ classdef OptSys < matlab.mixin.Copyable
                 end
             end
         end % of saveWFfits
+        
+        function savePSFfits(PSFamp,PSFphase,ind)
+            % saveWFfits(PSFamp,PSFphase,ind)
+            % saves PSFamp and PSFphase as fits files in Propfile directory.
+            % If the directory doesn't exist, it is created.
             
+            val = exist('Propfiles', 'dir');
+            if val == 7
+                filenameamp = sprintf('PSF0%d_amp.fits',ind);
+                filenamephase = sprintf('PSF0%d_phase.fits',ind);
+                filenamepsf = sprintf('PSF0%d_a0.fits',ind);
+                current_dir = pwd;
+                newdir = sprintf('%s/Propfiles',current_dir);
+                cd(newdir);
+                fitswrite(PSFamp,filenameamp);
+                fitswrite(PSFphase,filenamephase);
+                fitswrite(abs(PSFamp + 1i*PSFphase).^2,filenamepsf);
+                cd(current_dir);
+            else
+                mkdir Propfiles
+                val = exist('Propfiles', 'dir');
+                if val == 7
+                    filenameamp = sprintf('PSF0%d_amp.fits',ind);
+                    filenamephase = sprintf('PSF0%d_phase.fits',ind);
+                    current_dir = pwd;
+                    newdir = sprintf('%s/Propfiles',current_dir);
+                    cd(newdir);
+                    fitswrite(PSFamp,filenameamp);
+                    fitswrite(PSFphase,filenamephase);
+                    cd(current_dir);
+                else
+                    error('Problem Creating Propfiles Directory');
+                end
+            end
+        end % of savePSFfits
         
     end % of static methods
 end
