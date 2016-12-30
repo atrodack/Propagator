@@ -395,15 +395,16 @@ classdef OptMaterial < matlab.mixin.Copyable
             
             material_code_ = OM.material_code;
             
-%             nair = 1; %Vacuum
+            %             nair = 1; %Vacuum
+            numLambdas = length(lambda);
             
             switch material_code_
                 case 0
-                    n = 1;
+                    n = 1 * ones(1,numLambdas);
                 case 1
                     n = OM.SellmeierDispersion_Air(lambda);
                 case 2
-                    n = 2;
+                    n = 2 * ones(1,numLambdas);
                 case 3
                     n = OM.SellmeierDispersion_Si(lambda);
                 case 4
@@ -425,18 +426,17 @@ classdef OptMaterial < matlab.mixin.Copyable
                     error('MaterialError:MaterialnotSupported','That material is not (currently) supported');
             end
             
-%             phasefac = (2*pi / lambda) * (n - nair);
+            % phasefac = (2*pi / lambda) * (n - nair);
+            phasefac = (2*pi ./ lambda) .* n;
             
-            phasefac = (2*pi / lambda) * n;
-
-
+            
         end % of ComputePhaseFactor
         
         function descr = describe(OM)
             % descr = describe(OM)
             
             descr = sprintf('%s with Wavelength Band [%0.3f %0.3f]',OM.material.name, OM.material.band);
-        end % of describe    
+        end % of describe
         
     end % of methods
     
