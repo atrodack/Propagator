@@ -531,27 +531,26 @@ classdef OptSys < matlab.mixin.Copyable
                 sz(3) = 1;
             end;
             
-            % Initialize
-            WFfocus = zeros(sz(1),sz(2),sz(3));
             
             
-                WFfocus = fftshift(fft2(fftshift(WFin))) .* (sz(1).* sz(2) .* OS.pscale_ .* OS.pscale_);
-                WFreal = real(WFfocus);
-                WFimag = imag(WFfocus);
-                [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
-                OS.AmpPhase2WF();
-                psfa0 = abs(OS.WF).^2;
-                normalizer = max(psfa0(:));
-                
-                % Plot
-                if OS.verbose == 1
-                    for jj = 1:sz(3)
-                        figure(99999)
-                        imagesc(log10(psfa0(:,:,jj)/normalizer),[-5,0]);
-                        plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)));
-                        drawnow;
-                    end
+            WFfocus = fftshift(fft2(fftshift(WFin))) .* (sz(1).* sz(2) .* OS.pscale_ .* OS.pscale_);
+            WFreal = real(WFfocus);
+            WFimag = imag(WFfocus);
+            [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
+            OS.AmpPhase2WF();
+            psfa0 = abs(OS.WF).^2;
+            
+            
+            % Plot
+            if OS.verbose == 1
+                for jj = 1:sz(3)
+                    normalizer = max(max(psfa0(:,:,jj)));
+                    figure(99999)
+                    imagesc(log10(psfa0(:,:,jj)/normalizer),[-5,0]);
+                    plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)));
+                    drawnow;
                 end
+            end
             
         end % computePSF_normalize
         
