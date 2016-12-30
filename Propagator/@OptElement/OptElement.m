@@ -24,6 +24,7 @@ classdef OptElement < matlab.mixin.Copyable
         focal_length_; % focal length in meters
         z_position_; % position along optical axis (pupil is z = 0)
         diameter_; % diameter of element in meters
+        gridsize_ = [1024, 1024]; % default gridsize
         
         % Map of Optic Surface
         zsag_; % (in meters)
@@ -218,8 +219,14 @@ classdef OptElement < matlab.mixin.Copyable
                 fprintf('Reading FITS file %s into zsag\n\n',A);
             end
             A = fitsread(A);
+            elem.gridsize_ = size(A);
             
         elseif ismatrix(A)
+            if numel(A) == 1
+                A = ones(elem.gridsize_); % use size stored in gridsize_
+            else
+                elem.gridsize_ = size(A);
+            end
             if elem.verbose == 1
                 fprintf('Loading matrix into zsag\n\n');
             end
