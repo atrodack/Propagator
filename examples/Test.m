@@ -84,5 +84,5 @@ for ii = 1:length(lambda)
     field(:,:,ii) = field1;
 end;
 
-OS.PropagateSystem2(field, 1, 4);
+OS.PropagateSystem3(field, 1, 4);
 
