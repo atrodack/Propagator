@@ -23,7 +23,8 @@ props{6,1} = 3.4; % diameter
 props{7,1} = A; % zsag
 props{8,1} = 0; % isFocal
 E1 = OptElement(props);
-
+E1.set_zsag(E1.zsag_/2);
+gridsize = E1.gridsize_;
 
 B = 'piaam0z.fits';
 props2 = cell(8,1);
@@ -49,7 +50,7 @@ props3{7,1} = C; % zsag
 props3{8,1} = 0; % isFocal
 E3 = OptElement(props3);
 
-D = ones(1024);
+D = 1;
 props4 = cell(8,1);
 props4{1,1} = 'Detector'; % name
 props4{2,1} = 7; % type
@@ -69,7 +70,8 @@ OS.setLambdaarray(lambda);
 % OS.setCentralWavelength(lambda);
 % OS.setLambdaarray();
 OS.setPscale(0.00011);
-
+% OS.savefile = 0;
+% OS.verbose = 0;
 
 OS.addSequentialElement(E1);
 OS.addSequentialElement(E2);
@@ -82,5 +84,5 @@ for ii = 1:length(lambda)
     field(:,:,ii) = field1;
 end;
 
-OS.PropagateSystem(field, 1, 4);
+OS.PropagateSystem2(field, 1, 4);
 
