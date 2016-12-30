@@ -523,7 +523,7 @@ classdef OptSys < matlab.mixin.Copyable
                 WFfocus(:,:,jj) = fftshift(fft2(fftshift(WFin(:,:,jj)))) .* (sz(1).* sz(2) .* OS.pscale_ .* OS.pscale_);
                 WFreal(:,:,jj) = real(WFfocus(:,:,jj));
                 WFimag(:,:,jj) = imag(WFfocus(:,:,jj));
-                [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
+                [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase2(WFreal(:,:,jj),WFimag(:,:,jj));
                 OS.AmpPhase2WF(jj);
                 psfa0 = abs(OS.WF).^2;
                 normalizer = max(psfa0(:));
@@ -706,7 +706,7 @@ classdef OptSys < matlab.mixin.Copyable
                         WFimagpre(:,:,jj) = imag(WFtmp(:,:,jj));
                         
                         % Convert to Amplitude and Phase
-                        [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase(WFrealpre(:,:,jj),WFimagpre(:,:,jj));
+                        [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase2(WFrealpre(:,:,jj),WFimagpre(:,:,jj));
                         
                         % Plot Propagated Wavefront
                         if OS.verbose == 1
@@ -726,7 +726,7 @@ classdef OptSys < matlab.mixin.Copyable
                         WFimagpost(:,:,jj) = imag(WFout(:,:,jj));
                         
                         % Convert to Amplitude and Phase
-                        [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase(WFrealpost(:,:,jj),WFimagpost(:,:,jj));
+                        [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase2(WFrealpost(:,:,jj),WFimagpost(:,:,jj));
                         
                         % Plot Propagated Wavefront
                         if OS.verbose == 1
