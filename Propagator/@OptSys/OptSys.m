@@ -68,7 +68,7 @@ classdef OptSys < matlab.mixin.Copyable
             % Constructs OptSys object. Initializes WFCA to size sz
             
             if nargin < 1
-                sz = 1024;
+                sz = [1024,1024];
             end
             
             OS.initOptSys(sz);
@@ -94,7 +94,7 @@ classdef OptSys < matlab.mixin.Copyable
         
         function OS = addSequentialElement(OS,elem)
             % OS = addSequentialElement(OS,elem)
-            % adds andElement object to the optical system located after
+            % adds an Element object to the optical system located after
             % the previous stored element
             
             if isa(elem,'OptElement')
@@ -111,6 +111,17 @@ classdef OptSys < matlab.mixin.Copyable
             end
         end % of addSequentialElement
         
+        function OS = addSequentialElements(OS,elems)
+            % OS = addSequentialElements(OS,elems)
+            % adds list of elements "elems" to Optical system sequentially
+            % elems is a cell array of OptElement objects
+            
+            numElems = length(elems);
+            for ii = 1:numElems
+                OS.addSequentialElement(elems{ii});
+            end
+        end % of addSequentialElements
+            
         
         function OS = addElement(OS,elem,order_num)
             % OS = addElement(OS,elem,order_num)
@@ -247,7 +258,7 @@ classdef OptSys < matlab.mixin.Copyable
             % gridsize = setGridsize(OS,sz)
             
             if nargin < 2
-                gridsize = size(OS.ELEMENTS_{1}.zsag_,1);
+                gridsize = size(OS.ELEMENTS_{1}.zsag_);
             else
                 gridsize = sz;
             end
@@ -267,7 +278,7 @@ classdef OptSys < matlab.mixin.Copyable
             % Returns number of lambdas and list of propagation distances
             % for use in PropagateSystem method
             
-            OK = false(3,1);
+            OK = false(4,1);
             % Check that given Elements exist
             if OS.numElements_ >= starting_elem
                 if ending_elem <= OS.numElements_
@@ -302,6 +313,28 @@ classdef OptSys < matlab.mixin.Copyable
                     warning('Central Wavelength and Lambda_array are empty');
                 end
             end
+            
+            % Check Element Gridsizes
+            elements = OS.ELEMENTS_;
+            numelems = ending_elem - starting_elem + 1;
+            gridsizes = zeros(numelems,2);
+            for ii = starting_elem:ending_elem
+                gridsizes(ii,1) = elements{ii}.gridsize_(1,1);
+                gridsizes(ii,2) = elements{ii}.gridsize_(1,2);
+            end
+            if prod(gridsizes(:,1)) == OS.gridsize_(1)^numelems
+                if prod(gridsizes(:,2)) == OS.gridsize_(2)^numelems
+                    OK(4,1) = true;
+                else
+                    fprintf('\n\n');
+                    warning('2nd Dimensions are not equal');
+                end
+            else
+                fprintf('\n\n');
+                warning('1st Dimensions are not equal');
+            end
+                
+                
             
             % Error out if a Check fails
             if prod(OK) == 0
@@ -346,8 +379,8 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
             if on_axis
-                OS.WFamp = amplitude .* ones(OS.gridsize_);
-                OS.WFphase = zeros(OS.gridsize_);
+                OS.WFamp = amplitude .* ones(OS.gridsize_(1),OS.gridsize_(2));
+                OS.WFphase = zeros(OS.gridsize_(1),OS.gridsize_(2));
                 OS.AmpPhase2WF;
                 planewave = OS.WF;
             else  % off-axis
@@ -415,7 +448,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             % Edit zsag_ to be same dimension as WFin
             if numLambdas ~= 1 % maintain functionality of PropagateSystem2
-                tmp = zeros(OS.gridsize_,OS.gridsize_,numLambdas);
+                tmp = zeros(OS.gridsize_(1),OS.gridsize_(2),numLambdas);
                 WFout = tmp;
                 for ii = 1:numLambdas
                     tmp(:,:,ii) = elem.zsag_;
@@ -531,16 +564,13 @@ classdef OptSys < matlab.mixin.Copyable
                 sz(3) = 1;
             end;
             
-            
-            
             WFfocus = fftshift(fft2(fftshift(WFin))) .* (sz(1).* sz(2) .* OS.pscale_ .* OS.pscale_);
             WFreal = real(WFfocus);
             WFimag = imag(WFfocus);
             [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
             OS.AmpPhase2WF();
             psfa0 = abs(OS.WF).^2;
-            
-            
+
             % Plot
             if OS.verbose == 1
                 for jj = 1:sz(3)
@@ -623,8 +653,29 @@ classdef OptSys < matlab.mixin.Copyable
                             end
                         end
                         
-                        % Do the Fresnel Propagation
-                        WFout(:,:,jj) = OptSys.FresnelPropagateWF(WFtmp(:,:,jj),propdist(ii),OS.pscale_,lambda(jj));
+                        
+                        
+                        
+                        if OS.ELEMENTS_{ii}.isFocal == 1
+                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
+                            OS.computePSF(WFout);
+                            WFout = OS.WF;
+                            
+                            if OS.savefile == 1
+                                OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
+                            end
+                        elseif OS.ELEMENTS_{ii}.isFocal == 0
+                           % Do the Fresnel Propagation
+                           WFout(:,:,jj) = OptSys.FresnelPropagateWF(WFtmp(:,:,jj),propdist(ii),OS.pscale_,lambda(jj));
+                        
+                        elseif OS.ELEMENTS_{ii}.isFocal == 2
+                            % Subsampled focusing
+                            fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
+                            
+                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
+                            OS.computePSF(WFout);
+                            WFout = OS.WF;
+                        end
                         
                         % Store Real and Imaginary Parts of Wavefront
                         WFreal(:,:,jj) = real(WFout(:,:,jj));
@@ -649,20 +700,29 @@ classdef OptSys < matlab.mixin.Copyable
                     
                 else % last element, isn't applied, just checked for focal
                     
-                    % If the last element is focal, focus the WF
-                    if OS.ELEMENTS_{ii}.isFocal == true
+                    % If the last element is focal, focus the WF, looping
+                    % for wavelength done in computePSF()
+                    if OS.ELEMENTS_{ii}.isFocal == 1
                         fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
                         OS.computePSF(WFout);
                         
                         if OS.savefile == 1
                             OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
                         end
-                    else % leave as is. If PropagateSystem is called again
-                         % it will apply the element, so don't apply it
-                         % here. This else will likely be transformed into
-                         % instructions for using Fresnel Propagation to
-                         % focus instead of an FFT
+                    elseif OS.ELEMENTS_{ii}.isFocal == 0
                         fprintf('At last Element [Element not applied]\n');
+                        
+                    elseif OS.ELEMENTS_{ii}.isFocal == 2
+                        % Subsampled focusing
+                        fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
+                        
+                        fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
+                        OS.computePSF(WFout);
+                        
+                        if OS.savefile == 1
+                            OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
+                        end
+                        
                     end
                 end
                 
@@ -731,9 +791,27 @@ classdef OptSys < matlab.mixin.Copyable
                             drawnow;
                         end
                         
-
-                        % Do the Fresnel Propagation
-                        WFout(:,:,jj) = OptSys.FresnelPropagateWF(WFtmp(:,:,jj),propdist(ii),OS.pscale_,lambda(jj));
+                        if OS.ELEMENTS_{ii}.isFocal == 1
+                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
+                            OS.computePSF_normalize(WFout);
+                            WFout = OS.WF;
+                            if OS.savefile == 1
+                                OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
+                            end
+                        elseif OS.ELEMENTS_{ii}.isFocal == 0
+                            % Do the Fresnel Propagation
+                            WFout(:,:,jj) = OptSys.FresnelPropagateWF(WFtmp(:,:,jj),propdist(ii),OS.pscale_,lambda(jj));
+                            
+                        elseif OS.ELEMENTS_{ii}.isFocal == 2
+                            % Subsampled focusing
+                            fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
+                            
+                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
+                            OS.computePSF_normalize(WFout);
+                            WFout = OS.WF;
+                            
+                        end
+                        
                         
                         % Store Real and Imaginary Parts of Wavefront
                         WFrealpost(:,:,jj) = real(WFout(:,:,jj));
@@ -761,19 +839,26 @@ classdef OptSys < matlab.mixin.Copyable
                     
                     % If the last element is focal, focus the WF, looping
                     % for wavelength done in computePSF()
-                    if OS.ELEMENTS_{ii}.isFocal == true
+                    if OS.ELEMENTS_{ii}.isFocal == 1
                         fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
                         OS.computePSF_normalize(WFout);
                         
                         if OS.savefile == 1
                             OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
                         end
-                    else % leave as is. If PropagateSystem2 is called again
-                         % it will apply the element, so don't apply it
-                         % here. This else will likely be transformed into
-                         % instructions for using Fresnel Propagation to
-                         % focus instead of an FFT
+                    elseif OS.ELEMENTS_{ii}.isFocal == 0
                         fprintf('At last Element [Element not applied]\n');
+                        
+                    elseif OS.ELEMENTS_{ii}.isFocal == 2
+                        % Subsampled focusing
+                        fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
+                        
+                        fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
+                        OS.computePSF_normalize(WFout);
+                        
+                        if OS.savefile == 1
+                            OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
+                        end
                         
                     end
                 end
@@ -832,19 +917,38 @@ classdef OptSys < matlab.mixin.Copyable
                         
                         % Plot Propagated Wavefront
                         if OS.verbose == 1
-%                             for jj = 1:numLambdas
-                                jj = 1;
-                                figure(9999+ii)
-                                subplot(1,2,1);
-                                imagesc(OS.WFamp(:,:,jj));
-                                plotUtils(sprintf('WF00%damp^-,\n lambda = %g',ii,lambda(jj)));
-                                drawnow;
-%                             end
+                            %                             for jj = 1:numLambdas
+                            jj = 1;
+                            figure(9999+ii)
+                            subplot(1,2,1);
+                            imagesc(OS.WFamp(:,:,jj));
+                            plotUtils(sprintf('WF00%damp^-,\n lambda = %g',ii,lambda(jj)));
+                            drawnow;
+                            %                             end
                         end
                         
-
-                        % Do the Fresnel Propagation
-                        WFout = OptSys.FresnelPropagateWF(WFtmp,propdist(ii),OS.pscale_,lambda);
+                        if OS.ELEMENTS_{ii}.isFocal == 1
+                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
+                            OS.computePSF_normalize(WFout);
+                            WFout = OS.WF;
+                            
+                            if OS.savefile == 1
+                                OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
+                            end
+                        elseif OS.ELEMENTS_{ii}.isFocal == 0
+                            % Do the Fresnel Propagation
+                             WFout = OptSys.FresnelPropagateWF(WFtmp,propdist(ii),OS.pscale_,lambda);
+                             
+                        elseif OS.ELEMENTS_{ii}.isFocal == 2
+                            % Subsampled focusing
+                            fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
+                            
+                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
+                            OS.computePSF_normalize(WFout);
+                            WFout = OS.WF;
+                            
+                        end
+                        
                         
                         % Store Real and Imaginary Parts of Wavefront
                         WFrealpost = real(WFout);
@@ -875,19 +979,26 @@ classdef OptSys < matlab.mixin.Copyable
                     
                     % If the last element is focal, focus the WF, looping
                     % for wavelength done in computePSF()
-                    if OS.ELEMENTS_{ii}.isFocal == true
+                    if OS.ELEMENTS_{ii}.isFocal == 1
                         fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
                         OS.computePSF_normalize(WFout);
                         
                         if OS.savefile == 1
                             OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
                         end
-                    else % leave as is. If PropagateSystem2 is called again
-                         % it will apply the element, so don't apply it
-                         % here. This else will likely be transformed into
-                         % instructions for using Fresnel Propagation to
-                         % focus instead of an FFT
+                    elseif OS.ELEMENTS_{ii}.isFocal == 0
                         fprintf('At last Element [Element not applied]\n');
+                        
+                    elseif OS.ELEMENTS_{ii}.isFocal == 2
+                        % Subsampled focusing
+                        fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
+                        
+                        fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
+                        OS.computePSF_normalize(WFout);
+                        
+                        if OS.savefile == 1
+                            OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
+                        end
                         
                     end
                 end
