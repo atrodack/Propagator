@@ -360,6 +360,8 @@ classdef OptElement < matlab.mixin.Copyable
             descr = 'Fresnel Propagation';
         elseif isFocal == 1
             descr = 'Fourier Transform for focusing';
+        elseif isFocal == 2
+            descr = 'Subsampled Fourier Transform for focusing to FPM';
         end
         if elem.verbose == 1
             fprintf('The Propagation Method is %s\n',descr);
