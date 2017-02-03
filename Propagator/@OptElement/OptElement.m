@@ -408,10 +408,10 @@ classdef OptElement < matlab.mixin.Copyable
         end
         
         
-        zpos = elem.z_position_;
+        zpos = abs(elem.z_position_);
         sz = size(elem.zsag_);
         
-        descr = sprintf('%s Object %s:\nElement is a %s at %0.3f meters downstream\n',objtype,elem.name,elemtype,zpos);
+        descr = sprintf('%s:\nElement is a %s at %0.3f meters downstream\n',elem.name,elemtype,zpos);
         if flag == true
             elem.verbose = 1;
         end
