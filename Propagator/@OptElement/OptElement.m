@@ -19,29 +19,16 @@ classdef OptElement < matlab.mixin.Copyable
     
     properties(GetAccess = 'public', SetAccess = 'protected')
         % Element Properties
-        type_; % element type ---> see set_type method
         material_;
-        focal_length_; % focal length in meters
         z_position_; % position along optical axis (pupil is z = 0)
         diameter_; % diameter of element in meters
         gridsize_ = [1024, 1024]; % default gridsize
         
         % Map of Optic Surface
         zsag_; % (in meters)
-        amponly = 1; % flag for determining if Mask is phase or amplitude
-                     % Defaults to amplitude, but is set by input
-                     % focal_length_ for Mask types anyway. If not 0, then
-                     % it is considered amplitude only (NOTE: This means
-                     % mistakenly setting a focal length will make it
-                     % amplitude mask. This follows the assumption that the
-                     % user should take more care to ensure correctness if
-                     % the mask is meant to be a phase mask.
         
         phasefac_; % factor used to convert zsag_ into phase
         
-        % Propagation Type
-        % 0 = Fresnel Propagation needed, 1 = Fourier Transform
-        isFocal;
                 
     end % of protected properties
     
@@ -90,47 +77,7 @@ classdef OptElement < matlab.mixin.Copyable
         end % of contructor
         
     %% Set Properties
-    
-    function elem = set_type(elem,type)
-        % elem = set_type(elem,type)
-        % sets the type of optical element
-        % Masks default to amplitude only.
-        %
-        % Types Supported
-        % ===============
-        % 0: System Pupil
-        % 1: Lens
-        % 2: Mirror
-        % 3: Aspheric Lens
-        % 4: Aspheric Mirror
-        % 5: Pupil Mask
-        % 6: Focal Plane Mask
-        % 7: Detector
-        
-        elem.type_ = type;
-        switch type % have this if needed
-                case 0 % System Pupil
-                    
-                case 1 % Lens
-                    
-                case 2 % Mirror
-                    
-                case 3 % Aspheric Lens
-                    
-                case 4 % Aspheric Mirror
-                    
-                case 5 % Pupil Mask
-                    
-                case 6 % Focal Plane Mask
-                    
-                case 7 % Detector
-                    
-                otherwise
-                    error('Unknown Element type');
-        end
-            
-    end % of set_type
-    
+       
     function elem = set_material(elem,MATERIAL)
         % elem = set_material(elem,MATERIAL)
         % sets material to corresponding OptMaterial object
@@ -160,44 +107,13 @@ classdef OptElement < matlab.mixin.Copyable
         
         
     
-    function elem = set_focal_length(elem,f)
-        % elem = set_focal_length(elem,f)
-        % sets the focal length of the element to f (in meters)
-        % If the element is a mask, use this as a flag to set if the mask
-        % is amplitude or phase mask (1 for amp, 0 for phase).
-        
-        switch elem.type_
-                case 0 % System Pupil
-                    elem.amponly = f;
-                    
-                case 1 % Lens
-                    elem.focal_length_ = f;
-                case 2 % Mirror
-                    elem.focal_length_ = f;
-                case 3 % Aspheric Lens
-                    elem.focal_length_ = f;
-                case 4 % Aspheric Mirror
-                    elem.focal_length_ = f;
-                case 5 % Pupil Mask
-                    elem.amponly = f;
-                case 6 % Focal Plane Mask
-                    elem.amponly = f;
-                case 7 % Detector
-                    
-                otherwise
-                    error('Unknown Element type');
-        end
-        
-    end % of set_focal_length
     
     function elem = set_z_position(elem,z)
         % elem = set_z_position(elem,z)
         % sets the z position of the element to z (in meters)
-        if elem.type_ == 0
-            elem.z_position_ = 0;
-        else
-            elem.z_position_ = z;
-        end
+        
+        elem.z_position_ = z;
+        
     end % of set_z_position
     
     function elem = set_diameter(elem,D)
@@ -233,15 +149,7 @@ classdef OptElement < matlab.mixin.Copyable
         end
         elem.zsag_ = A;
     end % of set_zsag
-    
-    function elem = set_isFocal(elem,val)
-        % elem = set_isFocal
-        % sets the propagation type:
-        % val = 0 --> Fresnel
-        % val = 1 --> Fourier Transform
-        elem.isFocal = val;
-    end % of set_isFocal
-    
+        
     function elem = set_name(elem,name)
         % elem = set_name(elem,name)
         % sets the name of the element
@@ -295,40 +203,7 @@ classdef OptElement < matlab.mixin.Copyable
         end % of setdatatype
     %% Read out properties
     
-    function type = getElementType(elem)
-        % type = getElementType(elem)
-        % returns the type of element 
-        
-        type = elem.type_;
-        if type == 0
-            descr = 'System Pupil';
-        elseif type == 1
-            descr = 'Lens';
-        elseif type == 2
-            descr = 'Mirror';
-        elseif type == 3
-            descr = 'Aspheric Lens';
-        elseif type == 4
-            descr = 'Aspheric Mirror';
-        elseif type == 5
-            descr = 'Pupil Plane Mask';
-        elseif type == 6
-            descr = 'Focal Plane Mask';
-        elseif type == 7
-            descr = 'Detector';
-        end
-        if elem.verbose == 1
-            fprintf('Element is a %s \n',descr);
-        end
-    end % of getElementType
     
-    
-    function fl = getFocalLength(elem)
-        % fl = getFocalLength(elem)
-        % returns the value stored in the focal_length_
-        
-        fl = elem.focal_length_;
-    end % of getFocalLength
     
     function zpos = getZPosition(elem)
         %zpos = getZPosition(elem)
@@ -350,33 +225,8 @@ classdef OptElement < matlab.mixin.Copyable
         
         zsag = elem.zsag_;
     end % of getZsag
+
     
-    function isFocal = getPropagationMethod(elem)
-        % propagation_method = getPropagationMethod(elem)
-        % returns the method to be used for propagation
-        
-        isFocal = elem.isFocal;
-        if isFocal == 0
-            descr = 'Fresnel Propagation';
-        elseif isFocal == 1
-            descr = 'Fourier Transform for focusing';
-        elseif isFocal == 2
-            descr = 'Subsampled Fourier Transform for focusing to FPM';
-        end
-        if elem.verbose == 1
-            fprintf('The Propagation Method is %s\n',descr);
-        end
-    end % of getPropagationMethod
-    
-    
-    %% Utilities
-    
-    function fnum = getFNumber(elem)
-        % fnum = getFNumber(elem)
-        % returns the f/# of the element
-        
-        fnum = elem.getFocalLength / elem.getDiameter;
-    end % of getFNumber
     
     function descr = describe(elem)
         % descr = describe(elem)
