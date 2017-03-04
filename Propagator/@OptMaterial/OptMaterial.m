@@ -10,16 +10,16 @@ classdef OptMaterial < matlab.mixin.Copyable
     end % of constant properties
     
     properties(GetAccess = 'public', SetAccess = 'public')
-        lambda; % must be in meters
         verbose = 0;
         
     end % of public properties
     
     properties(GetAccess = 'public', SetAccess = 'protected')
         material = struct;
-        material_code = 0;
+        material_code_ = 0;
         n_;
         k_;
+        lambda_; % must be in meters
         lambdaum_;
 
         
@@ -29,7 +29,7 @@ classdef OptMaterial < matlab.mixin.Copyable
     methods
         %% Constructor
         
-        function OM = OptMaterial(code,lambda)
+        function OM = OptMaterial(code)
             % OM = OptMaterial(code)
             % constructs the material structure for material given by code
             %
@@ -48,15 +48,10 @@ classdef OptMaterial < matlab.mixin.Copyable
             % 9) Gold
             % 10) Silver
             
-            
-            if nargin < 2
-                OM.lambda = 550e-9; % default to photopic (units of meters)
-                OM.initMaterial(code);
+           
                 
-            elseif nargin == 2
-                OM.lambda = lambda;
+            if nargin == 1
                 OM.initMaterial(code);
-                
             else
                 error('InputArgs:IncorrectNum','Incorrect Number of Input Arguments\nSee help for OptMaterial');
             end
@@ -68,12 +63,10 @@ classdef OptMaterial < matlab.mixin.Copyable
         %% Material Properties
         
         function OM = initMaterial(OM,code)
-            OM.material_code = code;
+            OM.setMaterialCode(code);
             switch code
                 case 0
                     OM.material.name = 'Vacuum';
-                    OM.n_ = ones(1,length(OM.lambda));
-                    OM.lambdaum_ = OM.lambda * 1e6;
                     OM.material.band = [0, inf];
                     
                 case 1 % Ciddor 1996: n 0.23-1.690 µm
@@ -85,13 +78,9 @@ classdef OptMaterial < matlab.mixin.Copyable
                     OM.material.B2 = 0.00167917;
                     OM.material.C1 = 238.0185;
                     OM.material.C2 = 57.362;
-                    
-                    OM.SellmeierDispersion_Air();
-                    
+                                      
                 case 2
                     OM.material.name = 'Mirror';
-                    OM.n_ = 2*ones(1,length(OM.lambda));
-                    OM.lambdaum_ = OM.lambda * 1e6;
                     OM.material.band = [0, inf];
                     
                 case 3 % Chandler-Horowitz and Amirtharaj 2005: n 2.5-22.222 µm
@@ -101,9 +90,7 @@ classdef OptMaterial < matlab.mixin.Copyable
                     OM.material.A = 11.67316;
                     OM.material.B2 = 0.004482633;
                     OM.material.C2 = 1.108205^2;
-                                        
-                    OM.SellmeierDispersion_Si();
-                    
+                                                            
                 case 4 % Malitson 1965: n 0.21-3.71 µm
                     OM.material.name = 'SiO2';
                     OM.material.Abbe = 67.82;
@@ -116,9 +103,7 @@ classdef OptMaterial < matlab.mixin.Copyable
                     OM.material.C1 = 0.0684043^2;
                     OM.material.C2 = 0.1162414^2;
                     OM.material.C3 = 9.896161^2;
-                    
-                    OM.SellmeierDispersion();
-                    
+                                        
                 case 5 % Schott Catalog: n 0.3-2.5 µm
                     OM.material.name = 'BK7';
                     OM.material.Abbe = 64.17;
@@ -131,9 +116,7 @@ classdef OptMaterial < matlab.mixin.Copyable
                     OM.material.C1 = 0.00600069867;
                     OM.material.C2 = 0.0200179144;
                     OM.material.C3 = 103.560653;
-                    
-                    OM.SellmeierDispersion();
-                    
+                                        
                 case 6 % Schott Catalog: n 0.38-2.5 µm
                     OM.material.name = 'SF10';
                     OM.material.Abbe = 28.53;
@@ -146,9 +129,7 @@ classdef OptMaterial < matlab.mixin.Copyable
                     OM.material.C1 = 0.0122241457;
                     OM.material.C2 = 0.0595736775;
                     OM.material.C3 = 147.468793;
-                    
-                    OM.SellmeierDispersion();
-                    
+                                        
                 case 7 % Li 1980: n 0.15-12.0 µm; 20 °C
                     OM.material.name = 'CaF2';
                     OM.material.Abbe = 95.31;
@@ -161,9 +142,7 @@ classdef OptMaterial < matlab.mixin.Copyable
                     OM.material.C1 = 0.09374^2;
                     OM.material.C2 = 21.18^2;
                     OM.material.C3 = 38.46^2;
-                    
-                    OM.SellmeierDispersion();
-                    
+                                        
                 case 8 % Rakić 1998: n,k 0.2066-12.40 µm
                     OM.material.name = 'Aluminium';
                     OM.material.band = [0.2066, 12.40];
@@ -186,6 +165,27 @@ classdef OptMaterial < matlab.mixin.Copyable
             
         end % of initMaterial
         
+        function OM = setMaterialCode(OM,code)
+            % OM = setMaterialCode(OM,code)
+            % Method setting the material_code property
+            
+            OM.material_code_ = code;
+            
+        end % of setMaterialCode
+        
+        
+        function OM = setWavelength(OM,lambda)
+            % OM = setWavelength(OM,lambda)
+            % Function for material class to set lambda property. It is
+            % done this way so that individual elements don't need to know
+            % the wavelength. The Optical System should provide that
+            % information via the wavefront.
+            
+            OM.lambda_ = lambda;
+            OM.convert2Micron;
+            
+        end % of setWavelength
+        
         %% Utilities
         function OM = convert2Micron(OM)
             % OM = convert2Micron(OM)
@@ -193,7 +193,7 @@ classdef OptMaterial < matlab.mixin.Copyable
             % units of microns in order to use the Sellmeier dispersion
             % formula
             
-            OM.lambdaum_ = OM.lambda * 1e6;
+            OM.lambdaum_ = OM.lambda_ * 1e6;
         end % of convert2Micron
         
         
@@ -233,19 +233,37 @@ classdef OptMaterial < matlab.mixin.Copyable
         end % of PlotIndexk
         
         %% Index of Refraction Computations
-        function n = SellmeierDispersion(OM,lambda_)
-            % n = SellmeierDispersion(OM,)
+        
+        function n = SellmeierDispersion(OM,lambda)
+            % n = SellmeierDispersion(OM,lambda)
             % Internal function to compute index for material at input
             % wavelength(s). Plots if verbose is on.
             
-            if nargin < 2
-                OM.convert2Micron;
-                lambda_ = OM.lambdaum_;
-            else
-                lambda_ = lambda_ * 1e6;
-            end
             
-             band = [min(lambda_), max(lambda_)];
+            if nargin < 2
+                if isempty(OM.lambda_) == 0
+                    if isempty(OM.lambdaum_) == 0
+                        lambda = OM.lambdaum_;
+                    else
+                        OM.convert2Micron;
+                        lambda = OM.lambdaum_;
+                    end
+                else
+                    error('MaterialError:noWavelengthSet','No wavelength has been provided');
+                end
+                % Only use second argument if the material doesn't know
+                % wavelength to use already
+            elseif nargin == 2
+                if isempty(OM.lambda_)
+                    OM.setWavelength(lambda);
+                    OM.convert2Micron;
+                    lambda = OM.lambdaum_;
+                end
+            end
+                
+            
+            
+             band = [min(lambda), max(lambda)];
             if sum(isinf(band)) == 0
                 if band(1) < OM.material.band(1) || band(2) > OM.material.band(2)
                     error('Asking for wavelengths not supported by implementation of Sellmeier Formula\nSupported band is [%g %g] µm\n',OM.material.band(1),OM.material.band(2));
@@ -254,7 +272,7 @@ classdef OptMaterial < matlab.mixin.Copyable
                 error('Why do you care what happens at infinite wavelength?');
             end
             
-            m = OM.material.A + ((OM.material.B1 * lambda_.^2)./(lambda_.^2 - OM.material.C1)) + ((OM.material.B2 * lambda_.^2)./(lambda_.^2 - OM.material.C2)) + ((OM.material.B3 * lambda_.^2)./(lambda_.^2 - OM.material.C3));
+            m = OM.material.A + ((OM.material.B1 * lambda.^2)./(lambda.^2 - OM.material.C1)) + ((OM.material.B2 * lambda.^2)./(lambda.^2 - OM.material.C2)) + ((OM.material.B3 * lambda.^2)./(lambda.^2 - OM.material.C3));
             nn = m + 1;
             n = sqrt(nn);
             
@@ -266,25 +284,39 @@ classdef OptMaterial < matlab.mixin.Copyable
             else
                 if OM.verbose == 1
                     OM.PlotIndexvsWavelength;
-                    OM.PlotIndexPoint(lambda_,n);
+                    OM.PlotIndexPoint(lambda,n);
                 end
             end
 
         end % of SellmeierDispersion
         
         
-        function n = SellmeierDispersion_Si(OM,lambda_)
-            % n = SellmeierDispersion_Si(OM)
+        function n = SellmeierDispersion_Si(OM,lambda)
+            % n = SellmeierDispersion_Si(OM, lambda)
             % Internal function to compute index for Silicon
             
             if nargin < 2
-                OM.convert2Micron;
-                lambda_ = OM.lambdaum_;
-            else
-                lambda_ = lambda_ * 1e6;
+                if isempty(OM.lambda_) == 0
+                    if isempty(OM.lambdaum_) == 0
+                        lambda = OM.lambdaum_;
+                    else
+                        OM.convert2Micron;
+                        lambda = OM.lambdaum_;
+                    end
+                else
+                    error('MaterialError:noWavelengthSet','No wavelength has been provided');
+                end
+                % Only use second argument if the material doesn't know
+                % wavelength to use already
+            elseif nargin == 2
+                if isempty(OM.lambda_)
+                    OM.setWavelength(lambda);
+                    OM.convert2Micron;
+                    lambda = OM.lambdaum_;
+                end
             end
             
-            band = [min(lambda_), max(lambda_)];
+            band = [min(lambda), max(lambda)];
             if sum(isinf(band)) == 0
                 if band(1) < OM.material.band(1) || band(2) > OM.material.band(2)
                     error('Asking for wavelengths not supported by implementation of Sellmeier Formula\nSupported band is [%g %g] µm\n',OM.material.band(1),OM.material.band(2));
@@ -293,7 +325,7 @@ classdef OptMaterial < matlab.mixin.Copyable
                 error('Why do you care what happens at infinite wavelength?');
             end
             
-            nn = OM.material.A + (1./lambda_.^2) + ((OM.material.B2) ./ (lambda_.^2 - OM.material.C2));
+            nn = OM.material.A + (1./lambda.^2) + ((OM.material.B2) ./ (lambda.^2 - OM.material.C2));
             n = sqrt(nn);
             
             if nargin < 2
@@ -304,23 +336,37 @@ classdef OptMaterial < matlab.mixin.Copyable
             else
                 if OM.verbose == 1
                     OM.PlotIndexvsWavelength;
-                    OM.PlotIndexPoint(lambda_,n);
+                    OM.PlotIndexPoint(lambda,n);
                 end
             end
         end % of SellmeierDispersion_Si
         
-        function n = SellmeierDispersion_Air(OM,lambda_)
-            % n = SellmeierDispersion_Si(OM)
+        function n = SellmeierDispersion_Air(OM,lambda)
+            % n = SellmeierDispersion_Si(OM, lambda)
             % Internal function to compute index for Air
             
             if nargin < 2
-                OM.convert2Micron;
-                lambda_ = OM.lambdaum_;
-            else
-                lambda_ = lambda_ * 1e6;
+                if isempty(OM.lambda_) == 0
+                    if isempty(OM.lambdaum_) == 0
+                        lambda = OM.lambdaum_;
+                    else
+                        OM.convert2Micron;
+                        lambda = OM.lambdaum_;
+                    end
+                else
+                    error('MaterialError:noWavelengthSet','No wavelength has been provided');
+                end
+                % Only use second argument if the material doesn't know
+                % wavelength to use already
+            elseif nargin == 2
+                if isempty(OM.lambda_)
+                    OM.setWavelength(lambda);
+                    OM.convert2Micron;
+                    lambda = OM.lambdaum_;
+                end
             end
             
-             band = [min(lambda_), max(lambda_)];
+             band = [min(lambda), max(lambda)];
             if sum(isinf(band)) == 0
                 if band(1) < OM.material.band(1) || band(2) > OM.material.band(2)
                     error('Asking for wavelengths not supported by implementation of Sellmeier Formula\nSupported band is [%g %g] µm\n',OM.material.band(1),OM.material.band(2));
@@ -329,7 +375,7 @@ classdef OptMaterial < matlab.mixin.Copyable
                 error('Why do you care what happens at infinite wavelength?');
             end
             
-            m = ((OM.material.B1) ./ (OM.material.C1 - lambda_.^-2)) + ((OM.material.B2) ./ (OM.material.C2 - lambda_.^-2));
+            m = ((OM.material.B1) ./ (OM.material.C1 - lambda.^-2)) + ((OM.material.B2) ./ (OM.material.C2 - lambda.^-2));
             n = m + 1;
             
             if nargin < 2
@@ -340,7 +386,7 @@ classdef OptMaterial < matlab.mixin.Copyable
             else
                 if OM.verbose == 1
                     OM.PlotIndexvsWavelength;
-                    OM.PlotIndexPoint(lambda_,n);
+                    OM.PlotIndexPoint(lambda,n);
                 end
             end
             
@@ -379,7 +425,7 @@ classdef OptMaterial < matlab.mixin.Copyable
             OM.n_ = n;
             OM.k_ = k;
             OM.lambdaum_ = lambdalist;
-            OM.lambda = lambdalist *1e-6;
+            OM.lambda_ = lambdalist *1e-6;
             
             if OM.verbose == 1
                 OM.PlotIndexvsWavelength;
@@ -389,32 +435,36 @@ classdef OptMaterial < matlab.mixin.Copyable
         end % of getMetalData
         
         %% Phase
-        function phasefac = ComputePhaseFactor(OM, lambda)
-            % phasefac = ComputePhase(Om,lambda)
+        function phasefac = ComputePhaseFactor(OM)
+            % phasefac = ComputePhase(OM,)
             % returns the phase factor (phase = k*OPL = (2pi/lambda)*n*z)
             
-            material_code_ = OM.material_code;
+            if isempty(OM.lambda_)
+                error('MaterialError:noWavelengthSet','No wavelength has been provided');
+            end
+            
+            lambda = OM.lambda_;
             
             %             nair = 1; %Vacuum
             numLambdas = length(lambda);
             
-            switch material_code_
+            switch OM.material_code_
                 case 0
                     n = 1 * ones(1,numLambdas);
                 case 1
-                    n = OM.SellmeierDispersion_Air(lambda);
+                    n = OM.SellmeierDispersion_Air();
                 case 2
                     n = 2 * ones(1,numLambdas);
                 case 3
-                    n = OM.SellmeierDispersion_Si(lambda);
+                    n = OM.SellmeierDispersion_Si();
                 case 4
-                    n = OM.SellmeierDispersion(lambda);
+                    n = OM.SellmeierDispersion();
                 case 5
-                    n = OM.SellmeierDispersion(lambda);
+                    n = OM.SellmeierDispersion();
                 case 6
-                    n = OM.SellmeierDispersion(lambda);
+                    n = OM.SellmeierDispersion();
                 case 7
-                    n = OM.SellmeierDispersion(lambda);
+                    n = OM.SellmeierDispersion();
                 case 8
                     error('Not supported yet');
                 case 9
@@ -425,6 +475,9 @@ classdef OptMaterial < matlab.mixin.Copyable
                     % Shouldn't be able to get this far, but just in case
                     error('MaterialError:MaterialnotSupported','That material is not (currently) supported');
             end
+            
+            % Store n into object
+            OM.n_ = n;
             
             % phasefac = (2*pi / lambda) * (n - nair);
             phasefac = (2*pi ./ lambda) .* n;
