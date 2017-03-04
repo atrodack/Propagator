@@ -1,5 +1,5 @@
 classdef OptLyot < OptElement
-    %UNTITLED5 Summary of this class goes here
+    %OptLyot Class for Lyot Stops
     %   Detailed explanation goes here
     
     properties(GetAccess = 'public', SetAccess = 'protected')

@@ -1,5 +1,5 @@
 classdef OptMirror < OptElement
-    %UNTITLED6 Summary of this class goes here
+    %OptMirror Class for Mirrors
     %   Detailed explanation goes here
     
     properties(GetAccess = 'public', SetAccess = 'protected')

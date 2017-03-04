@@ -1,5 +1,5 @@
 classdef OptDetector < OptElement
-    %UNTITLED2 Summary of this class goes here
+    %OptDetector Class for Detector objects
     %   Detailed explanation goes here
     
     properties(GetAccess = 'public', SetAccess = 'protected')

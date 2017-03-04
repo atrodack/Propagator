@@ -1,5 +1,5 @@
 classdef OptLens < OptElement
-    %UNTITLED4 Summary of this class goes here
+    %OptLens Class for lenses
     %   Detailed explanation goes here
     
     properties(GetAccess = 'public', SetAccess = 'protected')

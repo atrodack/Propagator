@@ -1,5 +1,5 @@
 classdef OptFPM < OptElement
-    %UNTITLED3 Summary of this class goes here
+    %OptFPM Class for Focal Plane Masks
     %   Detailed explanation goes here
     
     properties(GetAccess = 'public', SetAccess = 'protected')
