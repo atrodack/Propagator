@@ -11,13 +11,14 @@ classdef OptElement < matlab.mixin.Copyable
     
     properties(GetAccess='public',SetAccess='public')
         name; % give a name to the structure/system
-        default_data_type = 'double'; % data_type of zsag_
-        
         verbose = 1; % print extra info
         interpolate_method = []; % selects a method of interpolation
     end % of public properties
     
     properties(GetAccess = 'public', SetAccess = 'protected')
+        
+        % Data Type
+        default_data_type = 'single'; % data_type of zsag_
         % Element Properties
         material_;
         z_position_; % position along optical axis (pupil is z = 0)
@@ -34,69 +35,17 @@ classdef OptElement < matlab.mixin.Copyable
     
     %% Methods
     methods
-        %% Constructor
-        function elem = OptElement(PROPERTIES)
-            % elem = Element(A)
-            % PROPERTIES is a 8x1 cell array containing element properties
-            % If something is unknown or to be set later, leave that
-            % position in A empty:
-            %
-%           PROPERTIES{1,1} = name
-%           PROPERTIES{2,1} = type (0-7)
-%           PROPERTIES{3,1} = material (0-10)
-%           PROPERTIES{4,1} = focal length (m) *sets amponly for Mask types
-%           PROPERTIES{5,1} = z_position (m)
-%           PROPERTIES{6,1} = diameter (m)
-%           PROPERTIES{7,1} = zsag (m) [file path or matrix]
-%           PROPERTIES{8,1} = isFocal flag
-            
-            if size(PROPERTIES) == [8,1]
-                if iscell(PROPERTIES) == 1
-                    A = PROPERTIES;
-                else
-                    error('PROPERTIES must be 8x1 cell array!');
-                end
-            else
-                error('PROPERTIES must be a 8x1 cell array!');
-            end
-            
-            elem.set_name(A{1,1});
-            elem.set_type(A{2,1});
-            elem.set_material(A{3,1});
-            elem.set_focal_length(A{4,1});
-            elem.set_z_position(A{5,1});
-            elem.set_diameter(A{6,1});
-            elem.set_zsag(A{7,1});
-            elem.set_isFocal(A{8,1});
-            
-            
-            
-            
-            
-            
-        end % of contructor
+
         
     %% Set Properties
-       
-    function elem = set_material(elem,MATERIAL)
-        % elem = set_material(elem,MATERIAL)
-        % sets material to corresponding OptMaterial object
-        % See OptMaterial.m for material more info
+     
+    function elem = set_material(elem, code)
+        % elem = set_material(elem,code)
+        % This creates a material at a default wavelength set by the
+        % OptMaterial class. 
         
-        if isa(MATERIAL,'OptMaterial')
-            elem.material_ = MATERIAL;
-            if elem.verbose == 1
-                fprintf('Material %s loaded into Element %s\n',MATERIAL.material.name,elem.name);
-            end
-        elseif isempty(MATERIAL)
-            if elem.verbose == 1
-                fprintf('No Material for Element %s\n',elem.name);
-            end
-        else
-            error('Material must be of class OptMaterial');
-        end
-        
-    end % of set_material
+        elem.material_ = OptMaterial(code);
+    end
         
     function elem = set_phasefactor(elem,lambda)
         % elem = set_phasefactor(elem)
@@ -227,60 +176,19 @@ classdef OptElement < matlab.mixin.Copyable
     end % of getZsag
 
     
-    
-    function descr = describe(elem)
-        % descr = describe(elem)
-        
-        if elem.verbose == 1
-            flag = true;
-            elem.verbose = 0;
-        end
-        
-        objtype = 'OptElement';
-        
-        type = elem.type_;
-        if type == 0
-            elemtype = 'System Pupil';
-        elseif type == 1
-            elemtype = 'Lens';
-        elseif type == 2
-            elemtype = 'Mirror';
-        elseif type == 3
-            elemtype = 'Aspheric Lens';
-        elseif type == 4
-            elemtype = 'Aspheric Mirror';
-        elseif type == 5
-            elemtype = 'Pupil Plane Mask';
-        elseif type == 6
-            elemtype = 'Focal Plane Mask';
-        elseif type == 7
-            elemtype = 'Detector';
-        end
-        
-        
-        zpos = abs(elem.z_position_);
-        sz = size(elem.zsag_);
-        
-        descr = sprintf('%s:\nElement is a %s at %0.3f meters downstream\n',elem.name,elemtype,zpos);
-        if flag == true
-            elem.verbose = 1;
-        end
-        
-    end % of describe
-    
     function show(elem)
         % show(elem)
         % Plots matrix stored in zsag_
         
         if isreal(elem.zsag_) == 1
-            figure()
+            figure;
             imagesc(elem.zsag_)
             plotUtils(sprintf('Sag of Element %s',elem.name));
         else
             re = real(elem.zsag_);
             im = imag(elem.zsag_);
             [sagamp,sagphase] = WFReIm2AmpPhase(re,im);
-            figure();
+            figure;
             subplot(1,2,1)
             imagesc(sagamp);
             plotUtils(sprintf('Sag Amplitude of Element %s',elem.name));
