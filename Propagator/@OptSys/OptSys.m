@@ -26,7 +26,6 @@ classdef OptSys < matlab.mixin.Copyable
         gridsize_; %
         lambda0_; % central wavelength
         lambda_array_; % vector of lambdas to use
-        apertureStop; % probably not needed
         
         % List of Elements
         ELEMENTS_; % cell array of element cards
@@ -36,12 +35,11 @@ classdef OptSys < matlab.mixin.Copyable
         % 2) Material (index of refraction)
         % 3) Element Position
         % 4) z-sag in meters
-        % 5) Type of propagation to use (could change)
         
         % Wavefront
         WFamp;
         WFphase;
-        WF;
+        WF_;
         
         % GPU properties
         useGPU; % use a GPU flag
@@ -54,6 +52,7 @@ classdef OptSys < matlab.mixin.Copyable
         
         % Misc
         interpolate_method = [];
+        default_data_type = 'single';
         
         
     end % of protected properties
@@ -77,7 +76,7 @@ classdef OptSys < matlab.mixin.Copyable
         end % of contructor
         
         
-        %% Set Properties
+        %% Initializer for OptSys
         
         function OS = initOptSys(OS,sz)
             %OS = initializeOptSys(OS,sz)
@@ -91,12 +90,14 @@ classdef OptSys < matlab.mixin.Copyable
             
         end % of initOptSys
         
+        %% Utilities for adding and removing elements from the system
         
         function OS = addSequentialElement(OS,elem)
             % OS = addSequentialElement(OS,elem)
             % adds an Element object to the optical system located after
             % the previous stored element
             
+            % Children of OptElement will return true to this
             if isa(elem,'OptElement')
                 OS.numElements_ = OS.numElements_ + 1;
                 OS.ELEMENTS_{OS.numElements_,1} = elem;
@@ -192,6 +193,7 @@ classdef OptSys < matlab.mixin.Copyable
             end
         end % of removeElement
         
+        %% Property Setting Methods
         
         function OS = setPscale(OS,val)
             % OS = setPscale(OS,val)
@@ -232,6 +234,67 @@ classdef OptSys < matlab.mixin.Copyable
             end
         end % of setCentralWavelength
         
+        function OS = setField(OS,field)
+            % OS = setField(OS,field)
+            if nargin < 2
+                OS.planewave();
+            elseif nargin == 2
+                if(strcmp(OS.default_data_type, 'single'))
+                    OS.WF_ = single(field);
+                elseif(strcmp(OS.default_data_type, 'double'))
+                    OS.WF_ = double(field);
+                elseif(strcmp(OS.default_data_type, 'uint8'))
+                    OS.WF_ = uint8(field);
+                else
+                    error('Data type not supported');
+                end
+            end
+        end % of setField
+            
+        function OS = setdatatype(OS,default_data_type)
+            % elem = datatype(default_data_type)
+            % Sets the datatype to use. Do not do anything if already of
+            % the correct data type.
+            % Currently supported:
+            % single
+            % double
+            % uint8
+            
+            if nargin < 2
+                default_data_type = OS.default_data_type;
+            else
+                OS.default_data_type = default_data_type;
+            end
+            
+            switch default_data_type
+                case 'single'
+                    if ~isa(OS.WF_,'single')
+                        OS.WF_ = single(OS.WF_);
+                        if OS.verbose == 1
+                            fprintf('Data Type set to single\n');
+                        end
+                    end
+                    
+                case 'double'
+                    if ~isa(OS.WF_,'double')
+                        OS.OS.WF_ = double(OS.WF_);
+                        if OS.verbose == 1
+                            fprintf('Data Type set to double\n');
+                        end
+                    end
+                    
+                case 'uint8'
+                    if ~isa(OS.WF_,'uint8')
+                        OS.WF_ = uint8(OS.WF_);
+                        if OS.verbose == 1
+                            fprintf('Data Type set to uint8\n');
+                        end
+                    end
+                    
+                otherwise
+                    error('I do not understand that data type (yet)!');
+            end
+        end % of setdatatype
         
         function conjugations = setConjugations(OS)
             % OS = setConjugations(OS)
@@ -266,6 +329,39 @@ classdef OptSys < matlab.mixin.Copyable
             OS.gridsize_ = gridsize;
             
         end % of setGridsize
+        
+        function show(OS)
+        % show(OS)
+        % Plots matrix stored in zsag_
+        numLambdas = size(OS.lambda_array_,2);
+        
+        if isreal(OS.WF_) == 1
+            figure;
+            for ii = 1:numLambdas
+                imagesc(OS.WF_(:,:,ii))
+                plotUtils(sprintf('WF lambda %d',ii));
+                drawnow;
+                pause(0.15);
+            end
+        else
+            figure;
+            for ii = 1:numLambdas
+                re = real(OS.WF_(:,:,ii));
+                im = imag(OS.WF_(:,:,ii));
+                [sagamp,sagphase] = WFReIm2AmpPhase(re,im);
+                subplot(1,2,1)
+                imagesc(sagamp);
+                plotUtils(sprintf('WF Amplitude, lambda %d',ii));
+                subplot(1,2,2)
+                imagesc(sagphase);
+                plotUtils(sprintf('WF Phase, lambda %d',ii));
+                drawnow;
+                pause(0.15);
+            end
+            
+        end
+        
+    end % of show
         
         
         %% Propagation Utility Methods
@@ -359,7 +455,7 @@ classdef OptSys < matlab.mixin.Copyable
         end % initPropagation
         
         
-        function planewave = planewave(OS,amplitude,numLambdas,theta)
+        function OS = planewave(OS,amplitude,numLambdas,theta)
             % OS = planewave(OS,amplitude,theta)
             % Initializes a planewave as the stored wavefront
             %
@@ -368,12 +464,22 @@ classdef OptSys < matlab.mixin.Copyable
             % If no input, just use ones
             if nargin < 2
                 amplitude = complex(1);
-                numLambdas = 1;
+                if isempty(OS.lambda_array_)
+                    numLambdas = 1;
+                else
+                    numLambdas = size(OS.lambda_array_,2);
+                end
             end
+            
             % If no number of lambdas, just use one
             if nargin < 3
-                numLambdas = 1;
+                if isempty(OS.lambda_array_)
+                    numLambdas = 1;
+                else
+                    numLambdas = size(OS.lambda_array_,2);
+                end
             end
+            
             % Theta is the off axis angle of the planewave (not supported
             % yet)
             if nargin < 4
@@ -383,14 +489,26 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
             if on_axis
-                OS.WFamp = amplitude .* ones(OS.gridsize_(1),OS.gridsize_(2));
-                OS.WFphase = zeros(OS.gridsize_(1),OS.gridsize_(2));
-                OS.AmpPhase2WF;
-                field = zeros(size(OS.WF,1),size(OS.WF,2),numLambdas);
+                if strcmp( OS.default_data_type, 'single')
+                    amplitude = single(amplitude);
+                    WF = amplitude .* ones(OS.gridsize_(1),OS.gridsize_(2));
+                    field = single(zeros(size(WF,1),size(WF,2),numLambdas));
+                elseif strcmp( OS.default_data_type, 'double')
+                    amplitude = double(amplitude);
+                    WF = amplitude .* ones(OS.gridsize_(1),OS.gridsize_(2));
+                    field = double(zeros(size(WF,1),size(WF,2),numLambdas));
+                elseif strcmp( OS.default_data_type, 'uint8')
+                    amplitude = uint8(amplitude);
+                    WF = amplitude .* ones(OS.gridsize_(1),OS.gridsize_(2));
+                    field = uint8(zeros(size(WF,1),size(WF,2),numLambdas));
+                else
+                    error('Data type not supported (yet)');
+                end
+                
                 for ii = 1:numLambdas
-                    field(:,:,ii) = OS.WF;
+                    field(:,:,ii) = WF;
                 end;
-                planewave = field;
+                OS.WF_ = field;
                 
             else  % off-axis
                 error('Not supported yet');
@@ -404,10 +522,10 @@ classdef OptSys < matlab.mixin.Copyable
             % components
             if nargin < 2
                 for ii = 1:size(OS.WFamp,3)
-                    OS.WF(:,:,ii) = OS.WFamp(:,:,ii) .* exp(-1i * OS.WFphase(:,:,ii));
+                    OS.WF_(:,:,ii) = OS.WFamp(:,:,ii) .* exp(-1i * OS.WFphase(:,:,ii));
                 end
             elseif nargin == 2
-                OS.WF(:,:,ind) = OS.WFamp(:,:,ind) .* exp(-1i * OS.WFphase(:,:,ind));
+                OS.WF_(:,:,ind) = OS.WFamp(:,:,ind) .* exp(-1i * OS.WFphase(:,:,ind));
             end
             
             
@@ -421,9 +539,9 @@ classdef OptSys < matlab.mixin.Copyable
             % object, and stores results in object
             
             if nargin < 2
-                if isempty(OS.WF) == 0
-                    OS.WFreal = real(OS.WF);
-                    OS.WFimag = imag(OS.WF);
+                if isempty(OS.WF_) == 0
+                    OS.WFreal = real(OS.WF_);
+                    OS.WFimag = imag(OS.WF_);
                 else
                     error('No wavefront stored in Object');
                 end
@@ -532,7 +650,7 @@ classdef OptSys < matlab.mixin.Copyable
             
         end % of ApplyElement
         
-        
+        % Switch these to using internal WF_, not input!
         function OS = computePSF(OS,WFin)
             % OS = computePSF(OS,WFin)
             
@@ -552,7 +670,7 @@ classdef OptSys < matlab.mixin.Copyable
                 WFimag(:,:,jj) = imag(WFfocus(:,:,jj));
                 [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
                 OS.AmpPhase2WF(jj);
-                psfa0 = abs(OS.WF).^2;
+                psfa0 = abs(OS.WF_).^2;
                 
                 % Plot
                 if OS.verbose == 1
@@ -569,7 +687,7 @@ classdef OptSys < matlab.mixin.Copyable
             % OS = computePSF(OS,WFin)
             
             if nargin < 2
-                WFin = OS.WF;
+                WFin = OS.WF_;
             end
                
             sz = size(WFin);
@@ -582,7 +700,7 @@ classdef OptSys < matlab.mixin.Copyable
             WFimag = imag(WFfocus);
             [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
             OS.AmpPhase2WF();
-            psfa0 = abs(OS.WF).^2;
+            psfa0 = abs(OS.WF_).^2;
 
             % Plot
             if OS.verbose == 1
@@ -599,7 +717,7 @@ classdef OptSys < matlab.mixin.Copyable
         
         
         
-        %% System Propagation Methods
+        %% System Propagation Methods -- OUT OF DATE, BEING UPDATED
         % See static methods for actual Fresnel propagation method
         
         function OS = PropagateSystem1(OS, WFin, starting_elem, ending_elem)
@@ -1386,13 +1504,40 @@ classdef OptSys < matlab.mixin.Copyable
                 OS.useGPU = 1;  % initialize to use GPU if there is one
                 
             else
-                warning('GPU:noGPU','No GPU to use!\n');
+                warning('GPU:noGPU','No GPU to use!');
                 OS.useGPU = 0;
-                c = parcluster('local'); % build the 'local' cluster object
-                OS.nWorkers = c.NumWorkers; % get the number of CPU cores from it
+%                 c = parcluster('local'); % build the 'local' cluster object
+%                 OS.nWorkers = c.NumWorkers; % get the number of CPU cores from it
             end
             
         end % of initGPU
+        
+        function OS = GPUify(OS)
+            % OS = GPUify(OS)
+            
+            % Check if GPU use is allowed
+            if(OS.useGPU ~=1)
+                warning('GPU:CPUselected', 'GPU is not being used. Run initGPU()');
+                return;
+            end
+            % Get the number of Elements
+            numElems = OS.numElements_;
+            
+            % Make sure the field is of type float
+            OS.setdatatype('single');
+            % Send field to gpu
+            OS.setField(gpuArray(OS.WF_));
+            
+            for ii = 1:numElems
+                % Make sure the zsag_ is of type float
+                OS.ELEMENTS_{ii}.setdatatype('single');
+                % Send zsag_ to the active gpu
+                OS.ELEMENTS_{ii}.set_zsag(gpuArray(OS.ELEMENTS_{ii}.zsag_));
+            end
+            
+            warning('GPU:PROPNS','Propagation is currently pixel by pixel, and not a matrix multiply. This will be incredibly slow on GPU. Consider using CPU');
+            
+        end % of GPUify
         
         
         function mem = GPUavailableMem(OS)
@@ -1407,10 +1552,21 @@ classdef OptSys < matlab.mixin.Copyable
         function OS = useCPU(OS)
             % useCPU(OS)
             % Tell code to not use GPUs. Initialize CPU workers
-            
             OS.useGPU = 0;
-            c = parcluster('local'); % build the 'local' cluster object
-            OS.nWorkers = c.NumWorkers; % get the number of CPU cores from it
+%             c = parcluster('local'); % build the 'local' cluster object
+%             OS.nWorkers = c.NumWorkers; % get the number of CPU cores from it
+            
+            % Gather any gpuArrays back to the CPU
+            % Get the number of Elements
+            numElems = OS.numElements_;
+            
+            % Send field to gpu
+            OS.setField(gather(OS.WF_));
+            
+            for ii = 1:numElems
+                % Send zsag_ to the active gpu
+                OS.ELEMENTS_{ii}.set_zsag(gather(OS.ELEMENTS_{ii}.zsag_));
+            end
         end % useCPU
         
     end % of methods
