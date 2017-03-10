@@ -50,8 +50,8 @@ classdef OptElement < matlab.mixin.Copyable
     function elem = set_phasefactor(elem,lambda)
         % elem = set_phasefactor(elem)
         % computes and sets the phasefac_ property using the material
-        
-        elem.phasefac_ = elem.material_.ComputePhaseFactor(lambda);
+        elem.material_.setWavelength(lambda);
+        elem.phasefac_ = elem.material_.ComputePhaseFactor();
     end % of set_phasefactor
         
         
@@ -81,7 +81,7 @@ classdef OptElement < matlab.mixin.Copyable
         
         if ischar(A) == 1
             if elem.verbose == 1
-                fprintf('Reading FITS file %s into zsag\n\n',A);
+                fprintf('Reading FITS file %s into zsag\n',A);
             end
             A = fitsread(A);
             elem.gridsize_ = size(A);
@@ -93,7 +93,7 @@ classdef OptElement < matlab.mixin.Copyable
                 elem.gridsize_ = size(A);
             end
             if elem.verbose == 1
-                fprintf('Loading matrix into zsag\n\n');
+                fprintf('Loading matrix into zsag\n');
             end
         end
         elem.zsag_ = A;
@@ -151,8 +151,6 @@ classdef OptElement < matlab.mixin.Copyable
             end
         end % of setdatatype
     %% Read out properties
-    
-    
     
     function zpos = getZPosition(elem)
         %zpos = getZPosition(elem)
