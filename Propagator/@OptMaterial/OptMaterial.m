@@ -445,7 +445,7 @@ classdef OptMaterial < matlab.mixin.Copyable
             
             lambda = OM.lambda_;
             
-            %             nair = 1; %Vacuum
+            % nair = 1; %Vacuum
             numLambdas = length(lambda);
             
             switch OM.material_code_
@@ -479,7 +479,7 @@ classdef OptMaterial < matlab.mixin.Copyable
             % Store n into object
             OM.n_ = n;
             
-            % phasefac = (2*pi / lambda) * (n - nair);
+            % phasefac = (2*pi ./ lambda) .* (n - nair);
             phasefac = (2*pi ./ lambda) .* n;
             
             
