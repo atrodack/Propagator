@@ -45,10 +45,12 @@ classdef OptPupil < OptElement
             elem.set_z_position(A{4,1});
             elem.set_diameter(A{5,1});
             elem.set_zsag(A{6,1});
+            elem.setdatatype();
 
         end % of contructor
         
-        %% 
+        %% Set Pupil Specific Properties
+        
         function elem = set_amponly(elem,flag)
             % elem = set_amponly(elem,flag)
             % set if the mask is amplitude or phase mask
@@ -58,6 +60,53 @@ classdef OptPupil < OptElement
             
         end % of set_amponly
         
+        %% Propagation Methods
+        % Should only be used by the propagation calls from OptSys
+        
+        
+        function WFout = ApplyElement(elem,WFin,lambda)
+            % OS = ApplyElement(elem,WFin,lambda)
+            % Applys element to current wavefront
+            
+            % Get number of wavelengths
+            numLambdas = length(lambda);
+            elem.set_phasefactor(lambda);
+            
+            % Edit zsag_ to be same dimension as WFin
+            if numLambdas ~= 1
+                if size(elem.zsag_,3) ~= numLambdas
+                    if strcmp( elem.default_data_type, 'single')
+                        tmp = single(zeros(elem.gridsize_(1),elem.gridsize_(2),numLambdas));
+                        WFout = tmp;
+                    elseif strcmp( elem.default_data_type, 'double')
+                        tmp = double(zeros(elem.gridsize_(1),elem.gridsize_(2),numLambdas));
+                        WFout = tmp;
+                    elseif strcmp( elem.default_data_type, 'uint8')
+                        tmp = uint8(zeros(elem.gridsize_(1),elem.gridsize_(2),numLambdas));
+                        WFout = tmp;
+                    end
+                        
+                    for ii = 1:numLambdas
+                        tmp(:,:,ii) = elem.zsag_;
+                    end
+                    elem.set_zsag(tmp);
+                    clear tmp;
+                end
+            end
+            
+            if elem.amponly ~= false % amplitude mask
+                WFout = WFin .* elem.zsag_;
+            else % phase mask
+                elem.set_phasefactor(lambda);
+                for ii = 1:numLambdas
+                    WFout(:,:,ii) = WFin(:,:,ii) .* exp(-1i * elem.phasefac_(ii) .* elem.zsag_(:,:,ii));
+                end
+            end
+            
+        end % ApplyElement
+        
+        
+        %% Overloaded Operators
         
         function descr = describe(elem)
             % elem = describe(elem)
