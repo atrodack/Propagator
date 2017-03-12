@@ -11,10 +11,16 @@ saved data for index of refraction vs. wavelength for materials in /Propagator/D
 
 
 Owners:
+
 Alexander T. Rodack
+
 Ph.D Candidate
+
 University of Arizona
 
+
 Justin M. Knight
+
 Ph.D Candidate
+
 University of Arizona
