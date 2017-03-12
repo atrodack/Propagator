@@ -228,10 +228,13 @@ classdef OptSys < matlab.mixin.Copyable
                     ind = ceil(len/2);
                     OS.lambda0_ = OS.lambda_array_(1,ind);
                 else
-                    error('Need to include lambda or set set lambda_array');
+                    error('Need to include lambda or set lambda_array');
                 end
             else
                 OS.lambda0_ = lambda;
+                if isempty(OS.lambda_array_)
+                    OS.setLambdaarray(lambda);
+                end
                 
             end
         end % of setCentralWavelength
@@ -348,17 +351,13 @@ classdef OptSys < matlab.mixin.Copyable
         else
             figure;
             for ii = 1:numLambdas
-                re = real(OS.WF_(:,:,ii));
-                im = imag(OS.WF_(:,:,ii));
-                [sagamp,sagphase] = WFReIm2AmpPhase(re,im);
                 subplot(1,2,1)
-                imagesc(sagamp);
+                imagesc(OS.WFamp(:,:,ii));
                 plotUtils(sprintf('WF Amplitude, lambda %d',ii));
                 subplot(1,2,2)
-                imagesc(sagphase);
+                imagesc(OS.WFphase(:,:,ii));
                 plotUtils(sprintf('WF Phase, lambda %d',ii));
                 drawnow;
-                pause(0.15);
             end
             
         end
