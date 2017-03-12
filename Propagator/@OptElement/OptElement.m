@@ -19,10 +19,12 @@ classdef OptElement < matlab.mixin.Copyable
         
         % Data Type
         default_data_type = 'single'; % data_type of zsag_
+        
         % Element Properties
         material_;
-        z_position_; % position along optical axis (pupil is z = 0)
+        z_position_; % position downstream from previous element (pupil is z = 0)
         diameter_; % diameter of element in meters
+        isFocal_ = 0;
         gridsize_ = [1024, 1024]; % default gridsize
         
         % Map of Optic Surface
@@ -47,11 +49,11 @@ classdef OptElement < matlab.mixin.Copyable
         elem.material_ = OptMaterial(code);
     end
         
-    function elem = set_phasefactor(elem,lambda)
+    function elem = set_phasefactor(elem,lambda,n0)
         % elem = set_phasefactor(elem)
         % computes and sets the phasefac_ property using the material
         elem.material_.setWavelength(lambda);
-        elem.phasefac_ = elem.material_.ComputePhaseFactor();
+        elem.phasefac_ = elem.material_.ComputePhaseFactor(n0);
     end % of set_phasefactor
         
         
@@ -198,12 +200,39 @@ classdef OptElement < matlab.mixin.Copyable
         
     end % of show
     
+    %% Utility Methods
+    
+    function elem = Cubify(elem,numLambdas)
+        % elem = Cubify(elem,numLambdas)
+        
+        if strcmp( elem.default_data_type, 'single')
+            tmp = single(zeros(elem.gridsize_(1),elem.gridsize_(2),numLambdas));
+        elseif strcmp( elem.default_data_type, 'double')
+            tmp = double(zeros(elem.gridsize_(1),elem.gridsize_(2),numLambdas));
+        elseif strcmp( elem.default_data_type, 'uint8')
+            tmp = uint8(zeros(elem.gridsize_(1),elem.gridsize_(2),numLambdas));
+        end
+        
+        for ii = 1:numLambdas
+            tmp(:,:,ii) = elem.zsag_;
+        end
+        elem.set_zsag(tmp);
+        clear tmp;
+    end % of Cubify
+    
+    
     
     end % of methods
     
     %% Static Methods
     methods(Static = true)
         
+        function addnewline(numlines)
+            % addnewline(numlines)
+            for ii = 1:numlines
+                fprintf('\n');
+            end
+        end % of addnewline
         
     end % of static methods
 end
