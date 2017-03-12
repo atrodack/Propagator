@@ -435,9 +435,22 @@ classdef OptMaterial < matlab.mixin.Copyable
         end % of getMetalData
         
         %% Phase
-        function phasefac = ComputePhaseFactor(OM)
-            % phasefac = ComputePhase(OM,)
-            % returns the phase factor (phase = k*OPL = (2pi/lambda)*n*z)
+        function phasefac = ComputePhaseFactor(OM,n0)
+            % phasefac = ComputePhase(OM,n0)
+            %
+            % n0 is the incident medium index
+            % index of n1 is chosen for material
+            %
+            % phase = k*OPL = (2pi/lambda)*n*z
+            % returns phasefac = (2pi / lambda)*n
+            % z should be supplied by the element sags
+            
+            % If no n0 is given:
+            % Assume incident medium index is 1. Can change to
+            % OM.SellmeierDispersion_Air() if you think it really matters
+            if nargin < 2
+                n0 = 1;
+            end
             
             if isempty(OM.lambda_)
                 error('MaterialError:noWavelengthSet','No wavelength has been provided');
@@ -445,7 +458,6 @@ classdef OptMaterial < matlab.mixin.Copyable
             
             lambda = OM.lambda_;
             
-            % nair = 1; %Vacuum
             numLambdas = length(lambda);
             
             switch OM.material_code_
@@ -454,7 +466,7 @@ classdef OptMaterial < matlab.mixin.Copyable
                 case 1
                     n = OM.SellmeierDispersion_Air();
                 case 2
-                    n = 2 * ones(1,numLambdas);
+                    n = 3 * ones(1,numLambdas);
                 case 3
                     n = OM.SellmeierDispersion_Si();
                 case 4
@@ -479,8 +491,8 @@ classdef OptMaterial < matlab.mixin.Copyable
             % Store n into object
             OM.n_ = n;
             
-            % phasefac = (2*pi ./ lambda) .* (n - nair);
-            phasefac = (2*pi ./ lambda) .* n;
+            phasefac = (2*pi ./ lambda) .* (n - n0);
+%             phasefac = (2*pi ./ lambda) .* n;
             
             
         end % of ComputePhaseFactor
