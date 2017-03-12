@@ -46,6 +46,7 @@ classdef OptPupil < OptElement
             elem.set_diameter(A{5,1});
             elem.set_zsag(A{6,1});
             elem.setdatatype();
+            elem.addnewline(2);
 
         end % of contructor
         
@@ -64,40 +65,28 @@ classdef OptPupil < OptElement
         % Should only be used by the propagation calls from OptSys
         
         
-        function WFout = ApplyElement(elem,WFin,lambda)
+        function WFout = ApplyElement(elem,WFin,lambda,n0)
             % OS = ApplyElement(elem,WFin,lambda)
             % Applys element to current wavefront
             
             % Get number of wavelengths
             numLambdas = length(lambda);
-            elem.set_phasefactor(lambda);
+            % Get wavelength dependent phase factors
+            elem.set_phasefactor(lambda,n0);
+            % Initialize WFout
+            WFout = WFin; % done this way to preserve data type...
+                          % actual values will be overwritten
             
             % Edit zsag_ to be same dimension as WFin
             if numLambdas ~= 1
-                if size(elem.zsag_,3) ~= numLambdas
-                    if strcmp( elem.default_data_type, 'single')
-                        tmp = single(zeros(elem.gridsize_(1),elem.gridsize_(2),numLambdas));
-                        WFout = tmp;
-                    elseif strcmp( elem.default_data_type, 'double')
-                        tmp = double(zeros(elem.gridsize_(1),elem.gridsize_(2),numLambdas));
-                        WFout = tmp;
-                    elseif strcmp( elem.default_data_type, 'uint8')
-                        tmp = uint8(zeros(elem.gridsize_(1),elem.gridsize_(2),numLambdas));
-                        WFout = tmp;
-                    end
-                        
-                    for ii = 1:numLambdas
-                        tmp(:,:,ii) = elem.zsag_;
-                    end
-                    elem.set_zsag(tmp);
-                    clear tmp;
+                if size(elem.zsag_,3) ~= numLambdas % only do this if necessary
+                    elem.Cubify(numLambdas);
                 end
             end
             
-            if elem.amponly ~= false % amplitude mask
+            if elem.amponly == true % amplitude mask
                 WFout = WFin .* elem.zsag_;
             else % phase mask
-                elem.set_phasefactor(lambda);
                 for ii = 1:numLambdas
                     WFout(:,:,ii) = WFin(:,:,ii) .* exp(-1i * elem.phasefac_(ii) .* elem.zsag_(:,:,ii));
                 end
@@ -106,22 +95,15 @@ classdef OptPupil < OptElement
         end % ApplyElement
         
         
-        %% Overloaded Operators
+        %% Utility Methods
         
         function descr = describe(elem)
             % elem = describe(elem)
-            if elem.verbose == 1
-                flag = true;
-                elem.verbose = 0;
-            end
             elemtype = 'OptPupil';
             zpos = abs(elem.z_position_);
             sz = size(elem.zsag_);
             
             descr = sprintf('%s:\nElement is an %s at %0.3f meters downstream\nGrid Size: [%d %d]',elem.name,elemtype,zpos, sz(1), sz(2));
-            if flag == true
-                elem.verbose = 1;
-            end
         end
         
     end
