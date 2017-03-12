@@ -212,7 +212,9 @@ classdef OptSys < matlab.mixin.Copyable
                 end
             else
                 OS.lambda_array_ = lambdalist;
-                OS.setCentralWavelength();
+                if isempty(OS.lambda0_)
+                    OS.setCentralWavelength();
+                end
             end
         end % of setLambdaarray
         
@@ -366,7 +368,7 @@ classdef OptSys < matlab.mixin.Copyable
         
         %% Propagation Utility Methods
         
-        function [numLambdas,propdist] = initPropagation(OS,starting_elem, ending_elem)
+        function [numLambdas,propdists] = initPropagation(OS,starting_elem, ending_elem)
             % [numLambdas,propdist] = initPropagation(OS,starting_elem, ending_elem)
             % Runs checks on OS object to ensure properties needed to
             % propagate through system are set.
@@ -438,19 +440,10 @@ classdef OptSys < matlab.mixin.Copyable
                 error('Check failed. See above warnings for help');
             end
             
+            % Set the propagation distances
+            propdists = OS.computePropdists();
             
-            % Get the z_position list
-            if isempty(OS.conjugations_) == 0
-                if length(OS.conjugations_) == OS.numElements_
-                    z_list = OS.conjugations_; % copy if already cached
-                else
-                    z_list = OS.setConjugations; % cache the values
-                end
-            end
-            propdist = zeros(length(z_list)-1,1);
-            for ii = 1:length(z_list)-1
-                propdist(ii) = z_list(ii+1) - z_list(ii);
-            end
+            
             
         end % initPropagation
         
@@ -515,6 +508,15 @@ classdef OptSys < matlab.mixin.Copyable
             end
         end % of planewave
         
+        function OS = ReIm2WF(OS)
+            % OS = ReIm2WF(OS)
+            % Converts OS.WF_ from real/imag to amp/phase, and stores that
+            % in OS.WF_
+            
+            [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(real(OS.WF_),imag(OS.WF_));
+            OS.AmpPhase2WF();
+            
+        end % of ReIm2WF
         
         function OS = AmpPhase2WF(OS,ind)
             % OS = AmpPhase2WF(OS)
@@ -522,133 +524,34 @@ classdef OptSys < matlab.mixin.Copyable
             % components
             if nargin < 2
                 for ii = 1:size(OS.WFamp,3)
-                    OS.WF_(:,:,ii) = OS.WFamp(:,:,ii) .* exp(-1i * OS.WFphase(:,:,ii));
+                    OS.WF_(:,:,ii) = OS.WFamp(:,:,ii) .* exp(1i * OS.WFphase(:,:,ii));
                 end
             elseif nargin == 2
-                OS.WF_(:,:,ind) = OS.WFamp(:,:,ind) .* exp(-1i * OS.WFphase(:,:,ind));
+                OS.WF_(:,:,ind) = OS.WFamp(:,:,ind) .* exp(1i * OS.WFphase(:,:,ind));
             end
             
             
         end % of AmpPhase2WF
         
         
-        function [WFreal,WFimag] = ReImWF(OS,WFin)
-            % OS = ReImWF(OS,WFin)
-            % Finds the real and imaginary components of a wavefront. If no
-            % wavefront is given, acts on wavefront stored in OptSys
-            % object, and stores results in object
+        function propdists = computePropdists(OS,z_list)
+            % propdist = computePropdists(OS)
             
             if nargin < 2
-                if isempty(OS.WF_) == 0
-                    OS.WFreal = real(OS.WF_);
-                    OS.WFimag = imag(OS.WF_);
+                if length(OS.conjugations_) ~= OS.numElements_
+                    z_list = OS.setConjugations();
                 else
-                    error('No wavefront stored in Object');
+                    z_list = OS.conjugations_;
                 end
-            else
-                WFreal = real(WFin);
-                WFimag = imag(WFin);
-            end
-        end % of ReImWF
-        
-        
-        
-        
-        
-        
-        
-        function WFout = ApplyElement(OS,elem_num,WFin,lambda)
-            % OS = ApplyElement(OS,elem_num,WFin)
-            % Applys element to current wavefront
-            
-            if nargin < 3
-                error('Must include the number of the element to apply (elem_num) and the complex wavefront to apply it to');
-            elseif nargin < 4
-                lambda = OS.lambda0_;
             end
             
-            % Store element
-            elem = OS.ELEMENTS_{elem_num};
-            
-            % Get number of wavelengths
-            numLambdas = length(lambda);
-            
-            % Edit zsag_ to be same dimension as WFin
-            if numLambdas ~= 1 % maintain functionality of PropagateSystem2
-                tmp = zeros(OS.gridsize_(1),OS.gridsize_(2),numLambdas);
-                WFout = tmp;
-                for ii = 1:numLambdas
-                    tmp(:,:,ii) = elem.zsag_;
-                end
-                elem.set_zsag(tmp);
-                clear tmp;
+            propdists = zeros(length(z_list),1);
+            for ii = 2:length(z_list)
+                propdists(ii) = z_list(ii) - z_list(ii-1);
             end
-            
-            % Get the type of element
-            type = elem.type_;
-            
-            switch type
-                case 0 % System Pupil
-                    if elem.amponly ~= 0 % amplitude mask
-                        WFout = WFin .* elem.zsag_;
-                    else % phase mask
-                        elem.set_phasefactor(lambda);
-                        for ii = 1:numLambdas
-                            WFout(:,:,ii) = WFin(:,:,ii) .* exp(-1i * elem.phasefac_(ii) .* elem.zsag_(:,:,ii));
-                        end
-                    end
-                    
-                case 1 % Lens
-                    elem.set_phasefactor(lambda);
-                    for ii = 1:numLambdas
-                        WFout(:,:,ii) = WFin(:,:,ii) .* exp(-1i * elem.phasefac_(ii) .* elem.zsag_(:,:,ii));
-                    end
-                    
-                case 2 % Mirror
-                    elem.set_phasefactor(lambda);
-                    for ii = 1:numLambdas
-                        WFout(:,:,ii) = WFin(:,:,ii) .* exp(-1i * elem.phasefac_(ii) .* elem.zsag_(:,:,ii));
-                    end
-                    
-                case 3 % Aspheric Lens
-                    elem.set_phasefactor(lambda);
-                    for ii = 1:numLambdas
-                        WFout(:,:,ii) = WFin(:,:,ii) .* exp(-1i * elem.phasefac_(ii) .* elem.zsag_(:,:,ii));
-                    end
-                case 4 % Aspheric Mirror
-                    elem.set_phasefactor(lambda);
-                    for ii = 1:numLambdas
-                        WFout(:,:,ii) = WFin(:,:,ii) .* exp(-1i * elem.phasefac_(ii) .* elem.zsag_(:,:,ii));
-                    end
-                    
-                case 5 % Pupil Mask
-                    if elem.amponly ~= 0 % amplitude mask
-                        WFout = WFin .* elem.zsag_;
-                    else % phase mask
-                        elem.set_phasefactor(lambda);
-                        for ii = 1:numLambdas
-                            WFout(:,:,ii) = WFin(:,:,ii) .* exp(-1i * elem.phasefac_(ii) .* elem.zsag_(:,:,ii));
-                        end
-                    end
-                    
-                case 6 % Focal Plane Mask
-                    if elem.amponly ~= 0 % amplitude mask
-                        WFout = WFin .* elem.zsag_;
-                    else % phase mask
-                        elem.set_phasefactor(lambda);
-                        for ii = 1:numLambdas
-                            WFout(:,:,ii) = WFin(:,:,ii) .* exp(-1i * elem.phasefac_(ii) .* elem.zsag_(:,:,ii));
-                        end
-                    end
-                    
-                case 7 % Detector
-                    
-                otherwise
-                    error('Unknown Element type');
-            end
-            
-            
-        end % of ApplyElement
+        
+        end % of computePropdists
+        
         
         % Switch these to using internal WF_, not input!
         function OS = computePSF(OS,WFin)
@@ -717,18 +620,39 @@ classdef OptSys < matlab.mixin.Copyable
         
         
         
-        %% System Propagation Methods -- OUT OF DATE, BEING UPDATED
+        %% System Propagation Methods
         % See static methods for actual Fresnel propagation method
         
-        function OS = PropagateSystem1(OS, WFin, starting_elem, ending_elem)
-            % OS = PropagateSystem1(OS, WFin, starting_elem, ending_elem)
-            % Propagates WFin through the elements [starting_elem,
-            % starting_elem + 1, starting_elem +2, ..., ending_elem].
-            %
-            % WFin should be a complex amplitude (amp .* exp(-i*phase))
+        function OS = propagate2Elem(OS, propdist, pscale, lambda)
+            % OS = propagate2Elem(OS,propdist,pscale,lambda)
+            OS.setField(OptSys.FresnelPropagateWF(OS.WF_,propdist,pscale,lambda));
+            OS.ReIm2WF;
             
-            fprintf('\n'); 
-            [numLambdas, propdist] = OS.initPropagation(starting_elem, ending_elem);
+        end % of propagate2Elem
+        
+        function OS = ApplyElement(OS,elem_num,n0)
+            % OS = ApplyElement(OS,elem_num,n0)
+            
+            if isa(OS.ELEMENTS_{elem_num},'OptFPM')
+                        % The FPM needs access to the pscale property
+                        OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0,OS.pscale_));
+                        OS.ReIm2WF;
+                    else
+                        OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0));
+                        OS.ReIm2WF;
+            end
+        end % of ApplyElement
+            
+        
+        function OS = PropagateSystem1(OS,starting_elem, ending_elem,n0)
+            % OS = PropagateSystem1(OS, starting_elem, ending_elem)
+            %
+            % Propagate from ELEMENTS_{starting_elem} to
+            % ELEMENTS_{ending_elem} using static method below for Fresnel
+            % Propagation
+            
+            fprintf('\n\n\n');
+            [numLambdas, propdists] = OS.initPropagation(starting_elem, ending_elem);
             
             if numLambdas == 1
                 lambda = OS.lambda0_;
@@ -736,412 +660,148 @@ classdef OptSys < matlab.mixin.Copyable
                 lambda = OS.lambda_array_;
             end
             
-            % Initializations
-            WFout = zeros(size(WFin,1),size(WFin,2),numLambdas);
-            WFtmp = WFout;
-            WFreal = WFout;
-            WFimag = WFout;
+            % Propagation Limit
+            proplim = 1.0e-4;
+            
+            % Internal storage index of refraction
+            n0_ = n0;
             
             % Initialze directory name to save files with current time
             dirname = datestr(now,'dd_mm_yy_HH:MM');
             
-            % Loop over given elements
+             % Loop over given elements
             for ii = starting_elem:ending_elem
-                fprintf('Applying Element %s\n',OS.ELEMENTS_{ii}.name);
-                % The last element is different (it will have no propdist)
-                if ii ~= ending_elem 
-                    
-                    % Loop over wavelengths
-                    for jj = 1:numLambdas
-                        
-                        % Apply the element to the Input Wavefront
-                        WFtmp(:,:,jj) = OS.ApplyElement(ii,WFin(:,:,jj),lambda(jj));
-                        
-                        % Make Wavefront Incident on Starting element prior to Propagation Viewable
-                        if ii == starting_elem
-                            
-                            % Only save for 1 wavelength
-                            if jj == 1
-                                % Store Real and Imaginary Parts of Wavefront
-                                WFreal(:,:,jj) = real(WFtmp(:,:,jj));
-                                WFimag(:,:,jj) = imag(WFtmp(:,:,jj));
-                                
-                                % Convert to Amplitude and Phase
-                                [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
-                                
-                                % Plot WF After Starting Element, before propagation
-                                if OS.verbose == 1
-                                    figure(9999)
-                                    imagesc(OS.WFamp(:,:,jj));
-                                    plotUtils(sprintf('WF00%damp,\n lambda = %g',ii-1,lambda(jj)));
-                                    drawnow;
-                                end
-                                
-                                % Save It
-                                if OS.savefile == 1
-                                    OptSys.saveWFfits(dirname,OS.WFamp, OS.WFphase, ii-1);
-                                end
-                            end
-                        end
-                        
-                        
-                        
-                        
-                        if OS.ELEMENTS_{ii}.isFocal == 1
-                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                            OS.computePSF(WFout);
-                            WFout = OS.WF;
-                            
-                            if OS.savefile == 1
-                                OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                            end
-                        elseif OS.ELEMENTS_{ii}.isFocal == 0
-                           % Do the Fresnel Propagation
-                           WFout(:,:,jj) = OptSys.FresnelPropagateWF(WFtmp(:,:,jj),propdist(ii),OS.pscale_,lambda(jj));
-                        
-                        elseif OS.ELEMENTS_{ii}.isFocal == 2
-                            % Subsampled focusing
-                            fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
-                            
-                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                            OS.computePSF(WFout);
-                            WFout = OS.WF;
-                        end
-                        
-                        % Store Real and Imaginary Parts of Wavefront
-                        WFreal(:,:,jj) = real(WFout(:,:,jj));
-                        WFimag(:,:,jj) = imag(WFout(:,:,jj));
-                        
-                        % Convert to Amplitude and Phase
-                        [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
-                        
-                        % Plot Propagated Wavefront
-                        if OS.verbose == 1
-                            figure(9999+ii)
-                            imagesc(OS.WFamp(:,:,jj));
-                            plotUtils(sprintf('WF00%damp,\n lambda = %g',ii,lambda(jj)));
-                            drawnow;
-                        end
-                    end
-                    
-                    % Save it
-                    if OS.savefile == 1
-                        OptSys.saveWFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                    end
-                    
-                else % last element, isn't applied, just checked for focal
-                    
-                    % If the last element is focal, focus the WF, looping
-                    % for wavelength done in computePSF()
-                    if OS.ELEMENTS_{ii}.isFocal == 1
-                        fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                        OS.computePSF(WFout);
-                        
-                        if OS.savefile == 1
-                            OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                        end
-                    elseif OS.ELEMENTS_{ii}.isFocal == 0
-                        fprintf('At last Element [Element not applied]\n');
-                        
-                    elseif OS.ELEMENTS_{ii}.isFocal == 2
-                        % Subsampled focusing
-                        fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
-                        
-                        fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                        OS.computePSF(WFout);
-                        
-                        if OS.savefile == 1
-                            OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                        end
-                        
-                    end
+                if ii == starting_elem
+                    fprintf('******************************************\n*    Starting at Element %s    *\n******************************************\n',OS.ELEMENTS_{ii}.name);
                 end
                 
-                % Move Calculated Wavefront to WFin to keep propagating
-                WFin = WFout;
-            end
+                % The last element is different (it will have no propdist)
+                if ii ~= ending_elem
+                    
+                    % Propagate
+                    if OS.ELEMENTS_{ii}.isFocal_ == 0
+                        if abs(propdists(ii)) > proplim
+                            fprintf('\nPropagating %g meters to element %s\n\n',propdists(ii), OS.ELEMENTS_{ii}.name);
+                            
+                            
+                            % Do the Fresnel Propagation
+                            OS.propagate2Elem(propdists(ii),OS.pscale_,lambda);
+
+                        else
+                            % If the distance isn't large enough,
+                            % don't propagate: OS.WF_ is unchanged
+                            fprintf('%g meters is less than proplim. Copying Field\n\n',propdists(ii));
+                            OS.ReIm2WF;
+                        end
+                        
+                    elseif OS.ELEMENTS_{ii}.isFocal_ == 1
+                        fprintf('Computing Focused Field using FFT of WF00%d\n',ii-1);
+                        OS.setField( OptSys.static_computePSF(OS.WF_,OS.pscale_));
+
+                        
+                    elseif OS.ELEMENTS_{ii}.isFocal_ == 2
+                        warning('Not Supporting Zoom-FFTs yet\n');
+                        fprintf('Implementing Zoom-FFTs for FPM. This is done by Applying the FPM\n');
+                        
+                    elseif OS.ELEMENTS_{ii}.isFocal_ == 3
+                        warning('Not Supporting Convolution with FPM yet\n');
+                        fprintf('Implementing Convolution with Babinets Principle for FPM. This is done by Applying the FPM\n');
+                        
+                    end
+                    
+                    % Save 
+                    if OS.savefile == 1
+%                         [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(real(OS.WF_),imag(OS.WF_));
+                        OptSys.saveWFfits(dirname,OS.WFamp, OS.WFphase, ii-1,'postprop');
+                    end
+                    
+                    descr = OS.ELEMENTS_{ii}.describe;
+                    fprintf('\n====================================================\n');
+                    fprintf('Applying %s',descr);
+                    fprintf('\n====================================================\n\n');
+                    
+                    
+                    %******************************************************
+                    % I haven't checked this, probably needs some
+                    % refinement based on what material the OptFPM actually
+                    % is. For now I am going to comment it out until I have
+                    % thought about it more.
+                    %******************************************************
+
+                    if ii > 1
+                        % Check if the field has just exited something with
+                        % a different index than the original n0
+                        if isa(OS.ELEMENTS_{ii-1},'OptLens')
+                            n0 = OS.ELEMENTS_{ii-1}.material_.n_;
+%                         elseif isa(OS.ELEMENTS_{ii-1}, 'OptFPM')
+%                             n0 = OS.ELEMENTS_{ii-1}.material_.n_;
+                        else
+                            n0 = n0_;
+                        end
+                    end
+
+                    
+                    % Apply the element
+                    OS.ApplyElement(ii,n0);
+                    if OS.verbose == true
+                        OS.show;
+                    end
+                    
+                    % Save 
+                    if OS.savefile == 1
+                        OptSys.saveWFfits(dirname,OS.WFamp, OS.WFphase, ii-1,'preprop');
+                    end
+
+                else % last element
+                    
+                    descr = OS.ELEMENTS_{ii}.describe;
+                    fprintf('\n====================================================\n');
+                    fprintf('************* Reached the Last Element *************\n');
+                    fprintf('%s',descr);
+                    fprintf('\n====================================================\n\n');
+                    
+                    % Propagate
+                    if OS.ELEMENTS_{ii}.isFocal_ == 0
+                        if abs(propdists(ii)) > proplim
+                            % Do the Fresnel Propagation
+                            OS.propagate2Elem(propdists(ii),OS.pscale_,lambda);
+
+                        else
+                            % If the distance isn't large enough,
+                            % don't propagate: OS.WF_ is unchanged
+                            OS.ReIm2WF;
+                        end
+                        
+                    elseif OS.ELEMENTS_{ii}.isFocal_ == 1
+                        fprintf('Computing Focused Field using FFT of WF00%d\n',ii-1);
+                        OS.computePSF_normalize(OS.WF_);
+
+                        
+                        if OS.savefile == 1
+                            OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
+                        end
+                        
+                    elseif OS.ELEMENTS_{ii}.isFocal_ == 2
+                        fprintf('Not Supporting Zoom-FFTs yet\n');
+                        
+                        
+                    elseif OS.ELEMENTS_{ii}.isFocal_ == 3
+                        fprintf('Not Supporting Convolution with FPM yet\n');
+                        
+                        
+                    end
+                    
+                end % of check if last element
+                
+                
+            end % of loop over elements
+            
             
         end % of PropagateSystem1
         
         
-        function OS = PropagateSystem2(OS, WFin, starting_elem, ending_elem)
-            % OS = PropagateSystem2(OS, WFin, starting_elem, ending_elem)
-            % Propagates WFin through the elements [starting_elem,
-            % starting_elem + 1, starting_elem +2, ..., ending_elem].
-            %
-            % WFin should be a complex amplitude (amp .* exp(-i*phase))
-            % This version plots the field both before and after
-            % propagation. Only after propagation is saved as FITS.
-            
-            fprintf('\n');
-            [numLambdas, propdist] = OS.initPropagation(starting_elem, ending_elem);
-            
-            if numLambdas == 1
-                lambda = OS.lambda0_;
-            else
-                lambda = OS.lambda_array_;
-            end
-            
-            % Initializations
-            WFout = zeros(size(WFin,1),size(WFin,2),numLambdas);
-            WFtmp = WFout;
-            WFrealpre = WFout;
-            WFimagpre = WFout;
-            WFrealpost = WFout;
-            WFimagpost = WFout;
-            
-            % Initialze directory name to save files with current time
-            dirname = datestr(now,'dd_mm_yy_HH:MM');
-            
-            % Loop over given elements
-            for ii = starting_elem:ending_elem
-                
-                % The last element is different (it will have no propdist)
-                if ii ~= ending_elem
-                    fprintf('Applying Element %s\n',OS.ELEMENTS_{ii}.name);
-                    
-                    % Loop over wavelengths
-                    for jj = 1:numLambdas
-                        % Apply the element to the Input Wavefront
-                        WFtmp(:,:,jj) = OS.ApplyElement(ii,WFin(:,:,jj),lambda(jj));
-                        
-                        % Store Real and Imaginary Parts of Wavefront
-                        % before propagation
-                        WFrealpre(:,:,jj) = real(WFtmp(:,:,jj));
-                        WFimagpre(:,:,jj) = imag(WFtmp(:,:,jj));
-                        
-                        % Convert to Amplitude and Phase
-                        [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase2(WFrealpre(:,:,jj),WFimagpre(:,:,jj));
-                        
-                        % Plot Propagated Wavefront
-                        if OS.verbose == 1
-                            figure(9999+ii)
-                            subplot(1,2,1);
-                            imagesc(OS.WFamp(:,:,jj));
-                            plotUtils(sprintf('WF00%damp^-,\n lambda = %g',ii,lambda(jj)));
-                            drawnow;
-                        end
-                        
-                        if OS.ELEMENTS_{ii}.isFocal == 1
-                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                            OS.computePSF_normalize(WFout);
-                            WFout = OS.WF;
-                            if OS.savefile == 1
-                                OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                            end
-                        elseif OS.ELEMENTS_{ii}.isFocal == 0
-                            % Do the Fresnel Propagation
-                            WFout(:,:,jj) = OptSys.FresnelPropagateWF(WFtmp(:,:,jj),propdist(ii),OS.pscale_,lambda(jj));
-                            
-                        elseif OS.ELEMENTS_{ii}.isFocal == 2
-                            % Subsampled focusing
-                            fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
-                            
-                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                            OS.computePSF_normalize(WFout);
-                            WFout = OS.WF;
-                            
-                        end
-                        
-                        
-                        % Store Real and Imaginary Parts of Wavefront
-                        WFrealpost(:,:,jj) = real(WFout(:,:,jj));
-                        WFimagpost(:,:,jj) = imag(WFout(:,:,jj));
-                        
-                        % Convert to Amplitude and Phase
-                        [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase2(WFrealpost(:,:,jj),WFimagpost(:,:,jj));
-                        
-                        % Plot Propagated Wavefront
-                        if OS.verbose == 1
-                            figure(9999+ii)
-                            subplot(1,2,2);
-                            imagesc(OS.WFamp(:,:,jj));
-                            plotUtils(sprintf('WF00%damp^+,\n lambda = %g',ii,lambda(jj)));
-                            drawnow;
-                        end
-                    end % loop over wavelengths
-                    
-                    % Save after propagation wavefront components
-                    if OS.savefile == 1
-                        OptSys.saveWFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                    end
-                    
-                else % last element
-                    
-                    % If the last element is focal, focus the WF, looping
-                    % for wavelength done in computePSF()
-                    if OS.ELEMENTS_{ii}.isFocal == 1
-                        fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                        OS.computePSF_normalize(WFout);
-                        
-                        if OS.savefile == 1
-                            OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                        end
-                    elseif OS.ELEMENTS_{ii}.isFocal == 0
-                        fprintf('At last Element [Element not applied]\n');
-                        
-                    elseif OS.ELEMENTS_{ii}.isFocal == 2
-                        % Subsampled focusing
-                        fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
-                        
-                        fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                        OS.computePSF_normalize(WFout);
-                        
-                        if OS.savefile == 1
-                            OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                        end
-                        
-                    end
-                end
-                
-                % Move Calculated Wavefront to WFin to keep propagating
-                WFin = WFout;
-                
-            end % loop over elements
-            
-        end % of PropagateSystem2
         
-        
-        function OS = PropagateSystem3(OS, WFin, starting_elem, ending_elem)
-            % OS = PropagateSystem3(OS, WFin, starting_elem, ending_elem)
-            % Propagates WFin through the elements [starting_elem,
-            % starting_elem + 1, starting_elem +2, ..., ending_elem].
-            %
-            % WFin should be a complex amplitude (amp .* exp(-i*phase))
-            % This version plots the field both before and after
-            % propagation for only 1 wavelength.
-            % Only after propagation is saved as FITS.
-            % Removes loop over wavelength and does it all as 3-D matrices
-            
-            fprintf('\n');
-            [numLambdas, propdist] = OS.initPropagation(starting_elem, ending_elem);
-            
-            if numLambdas == 1
-                lambda = OS.lambda0_;
-            else
-                lambda = OS.lambda_array_;
-            end
-            
-            
-            % Initialze directory name to save files with current time
-            dirname = datestr(now,'dd_mm_yy_HH:MM');
-            
-            % Loop over given elements
-            for ii = starting_elem:ending_elem
-                
-                % The last element is different (it will have no propdist)
-                if ii ~= ending_elem
-                    fprintf('Applying Element %s\n',OS.ELEMENTS_{ii}.name);
-                    
-                    
-                        
-                        % Apply the element to the Input Wavefront
-                        WFtmp = OS.ApplyElement(ii,WFin,lambda);
-                        
-                        % Store Real and Imaginary Parts of Wavefront
-                        % before propagation
-                        WFrealpre = real(WFtmp);
-                        WFimagpre = imag(WFtmp);
-                        
-                        % Convert to Amplitude and Phase
-                        [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(WFrealpre,WFimagpre);
-                        
-                        % Plot Propagated Wavefront
-                        if OS.verbose == 1
-                            %                             for jj = 1:numLambdas
-                            jj = 1;
-                            figure(9999+ii)
-                            subplot(1,2,1);
-                            imagesc(OS.WFamp(:,:,jj));
-                            plotUtils(sprintf('WF00%damp^-,\n lambda = %g',ii,lambda(jj)));
-                            drawnow;
-                            %                             end
-                        end
-                        
-                        if OS.ELEMENTS_{ii}.isFocal == 1
-                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                            OS.computePSF_normalize(WFout);
-                            WFout = OS.WF;
-                            
-                            if OS.savefile == 1
-                                OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                            end
-                        elseif OS.ELEMENTS_{ii}.isFocal == 0
-                            % Do the Fresnel Propagation
-                             WFout = OptSys.FresnelPropagateWF(WFtmp,propdist(ii),OS.pscale_,lambda);
-                             
-                        elseif OS.ELEMENTS_{ii}.isFocal == 2
-                            % Subsampled focusing
-                            fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
-                            
-                            fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                            OS.computePSF_normalize(WFout);
-                            WFout = OS.WF;
-                            
-                        end
-                        
-                        
-                        % Store Real and Imaginary Parts of Wavefront
-                        WFrealpost = real(WFout);
-                        WFimagpost = imag(WFout);
-                        
-                        % Convert to Amplitude and Phase
-                        [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(WFrealpost,WFimagpost);
-                        
-                        % Plot Propagated Wavefront
-                        if OS.verbose == 1
-                           % for jj = 1:numLambdas
-                                jj = 1;
-                                figure(9999+ii)
-                                subplot(1,2,2);
-                                imagesc(OS.WFamp(:,:,jj));
-                                plotUtils(sprintf('WF00%damp^+,\n lambda = %g',ii,lambda(jj)));
-                                drawnow;
-                           % end
-                        end
-                    
-                    
-                    % Save after propagation wavefront components
-                    if OS.savefile == 1
-                        OptSys.saveWFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                    end
-                    
-                else % last element
-                    
-                    % If the last element is focal, focus the WF, looping
-                    % for wavelength done in computePSF()
-                    if OS.ELEMENTS_{ii}.isFocal == 1
-                        fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                        OS.computePSF_normalize(WFout);
-                        
-                        if OS.savefile == 1
-                            OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                        end
-                    elseif OS.ELEMENTS_{ii}.isFocal == 0
-                        fprintf('At last Element [Element not applied]\n');
-                        
-                    elseif OS.ELEMENTS_{ii}.isFocal == 2
-                        % Subsampled focusing
-                        fprintf('Subsampled focusing not yet supported\nDoing regular focusing instead\n');
-                        
-                        fprintf('Computing PSF using FFT of WF00%d\n',ii-1);
-                        OS.computePSF_normalize(WFout);
-                        
-                        if OS.savefile == 1
-                            OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
-                        end
-                        
-                    end
-                end
-                
-                % Move Calculated Wavefront to WFin to keep propagating
-                WFin = WFout;
-                OS.WF = WFout;
-                
-            end % loop over elements
-            
-        end % of PropagateSystem3
-        
+        %% Remnant of the old code. Here for debugging new code purposes
         function OS = PropagateSystem4(OS, WFin, starting_elem, ending_elem)
             %OS = PropagateSystem4(OS, WFin, starting_elem, ending_elem)
             
@@ -1619,6 +1279,52 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
         end % of FresnelPropagateWF
+        
+        
+        function WFout = static_computePSF(WFin, pscale_)
+            % WFout = static_computePSF(OS,WFin)
+               
+            sz = size(WFin);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
+            
+            WFout = WFin;
+            
+            WFfocus = fftshift(fft2(fftshift(WFin))) .* (sz(1).* sz(2) .* pscale_ .* pscale_);
+            WFreal = real(WFfocus);
+            WFimag = imag(WFfocus);
+            [WFamp,WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
+            for ii = 1:size(WFamp,3)
+                    WFout(:,:,ii) = WFamp(:,:,ii) .* exp(-1i * WFphase(:,:,ii));
+            end
+
+            
+        end % static_computePSF
+        
+        function WFout = static_move2PP(WFin, pscale_)
+            % WFout = static_move2PP(OS,WFin)
+               
+            sz = size(WFin);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
+            
+            WFout = WFin;
+            
+            WFfocus = ifftshift(ifft2(ifftshift(WFin))) .* (sz(1).* sz(2) .* (pscale_) .* (pscale_))^-1;
+            WFreal = real(WFfocus);
+            WFimag = imag(WFfocus);
+            [WFamp,WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
+            for ii = 1:size(WFamp,3)
+                    WFout(:,:,ii) = WFamp(:,:,ii) .* exp(-1i * WFphase(:,:,ii));
+            end
+            
+            % Fix shift induced by MATLAB
+            WFout = flipud(WFout);
+
+            
+        end % static_move2PP
         
         function saveWFfits(dirname,WFamp,WFphase,ind,location)
             % saveWFfits(dirname,WFamp,WFphase,ind,location)
