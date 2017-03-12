@@ -25,7 +25,7 @@ A = 'pup_1024.fits'; % FITS file name
 
 % Initialize property cell array
 props = cell(8,1);
-props{1,1} = 'WFIRST pupil'; % name element
+props{1,1} = 'Telescope pupil'; % name element
 props{2,1} = 0; % element type (System Pupil)
 props{3,1} = MIRROR; % element material
 props{4,1} = 1; % focal length (amponly here because type 0
