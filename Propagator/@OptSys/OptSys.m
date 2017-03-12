@@ -346,7 +346,6 @@ classdef OptSys < matlab.mixin.Copyable
                 imagesc(OS.WF_(:,:,ii))
                 plotUtils(sprintf('WF lambda %d',ii));
                 drawnow;
-                pause(0.15);
             end
         else
             figure;
