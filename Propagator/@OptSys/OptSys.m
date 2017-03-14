@@ -607,7 +607,7 @@ classdef OptSys < matlab.mixin.Copyable
             if OS.verbose == 1
                 for jj = 1:sz(3)
                     normalizer = max(max(psfa0(:,:,jj)));
-                    figure(99999)
+                    figure()
                     imagesc(log10(psfa0(:,:,jj)/normalizer),[-5,0]);
                     plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)));
                     drawnow;
@@ -623,7 +623,13 @@ classdef OptSys < matlab.mixin.Copyable
         
         function OS = propagate2Elem(OS, propdist, pscale, lambda)
             % OS = propagate2Elem(OS,propdist,pscale,lambda)
-            OS.setField(OptSys.FresnelPropagateWF(OS.WF_,propdist,pscale,lambda));
+            
+            % Old Propagation Method (pixel by pixel)
+%             OS.setField(OptSys.FresnelPropagateWF(OS.WF_,propdist,pscale,lambda));
+%             OS.ReIm2WF;
+
+            % Faster Propagation Method
+            OS.setField(OptSys.FresnelProp(OS.WF_,propdist,pscale,lambda));
             OS.ReIm2WF;
             
         end % of propagate2Elem
@@ -1175,7 +1181,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             % Check if GPU use is allowed
             if(OS.useGPU ~=1)
-                warning('GPU:CPUselected', 'GPU is not being used. Run initGPU()');
+                warning('GPU:CPUselected', 'GPU is not being used. One may not exist. If you know it does, run initGPU()');
                 return;
             end
             % Get the number of Elements
@@ -1193,7 +1199,10 @@ classdef OptSys < matlab.mixin.Copyable
                 OS.ELEMENTS_{ii}.set_zsag(gpuArray(OS.ELEMENTS_{ii}.zsag_));
             end
             
-            warning('GPU:PROPNS','Propagation is currently pixel by pixel, and not a matrix multiply. This will be incredibly slow on GPU. Consider using CPU');
+            fprintf('\n\n\n***************************************************\n');
+            fprintf('*         Now Using GPU %s        *\n',OS.DEVICES{1}.Name);
+            fprintf('***************************************************\n');
+%             warning('GPU:PROPNS','Propagation is currently pixel by pixel, and not a matrix multiply. This will be incredibly slow on GPU. Consider using CPU');
             
         end % of GPUify
         
@@ -1227,10 +1236,50 @@ classdef OptSys < matlab.mixin.Copyable
             end
         end % useCPU
         
+        function OS = resetGPU(OS)
+            % OS = resetGPU(OS)
+            % Clears GPU memory
+            
+            gpuDevice(1);
+            fprintf('GPU memory reset\n');
+            
+        end % of resetGPU
+        
     end % of methods
     
     %% Static Methods
     methods(Static = true)
+        
+        function [ WFout ] = FresnelProp( WFin, z, pscale, lambda )
+            
+            k = (2*pi)./lambda;
+            [ny,nx,nlambda] = size(WFin);
+            
+            Lx = pscale*nx;
+            Ly = pscale*ny;
+            
+            dfx = 1./Lx;
+            dfy = 1./Ly;
+            
+            u = ones(nx,1)*((1:nx)-nx/2)*dfx;
+            v = ((1:ny)-ny/2)'*ones(1,ny)*dfy;
+            
+            sqrdist = u.^2 + v.^2;
+            coeff = pi*z*lambda;
+            
+            G = fftshift(fft2(fftshift(WFin)))* Lx * Ly;
+            
+            H = zeros(ny,nx,nlambda);
+            for ii = 1:nlambda
+                H(:,:,ii) = exp(1i.*k(ii)*z) .* exp((-1i .* coeff(ii)) .* sqrdist);
+            end
+            
+            WFout = ifftshift(ifft2(ifftshift(G.*H))) / Lx / Ly;
+            
+            
+        end
+
+        
         
         % Put here so it can be used without needing the class object
         function WFout = FresnelPropagateWF(WFin, propdist, pscale, lambda)
@@ -1252,7 +1301,7 @@ classdef OptSys < matlab.mixin.Copyable
                 WFintmp = WFin(:,:,kk);
                 
                 coeff = pi*propdist*lambda(kk) / (pscale * naxes0) / (pscale * naxes1);
-                
+
                 % Propagate
                 tmp = fftshift(fft2(fftshift(WFintmp))) * pscale * pscale;
                 tmpre = real(tmp);
@@ -1269,7 +1318,6 @@ classdef OptSys < matlab.mixin.Copyable
                         im = tmpim(ii1+1);
                         tmpre(ii1+1) = re*cos(angle) - im*sin(angle);
                         tmpim(ii1+1) = re*sin(angle) + im*cos(angle);
-                        
                     end
                 end
                 tmp = tmpre + 1i*tmpim;
