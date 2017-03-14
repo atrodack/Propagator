@@ -126,7 +126,7 @@ classdef OptFPM < OptElement
             zpos = abs(elem.z_position_);
             sz = size(elem.zsag_);
             
-            descr = sprintf('%s:\nElement is an %s\nGrid Size: [%d %d]',elem.name,elemtype,zpos, sz(1), sz(2));
+            descr = sprintf('%s:\nElement is an %s\nGrid Size: [%d %d]',elem.name,elemtype, sz(1), sz(2));
 
         end
     end

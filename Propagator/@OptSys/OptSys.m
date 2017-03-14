@@ -42,7 +42,7 @@ classdef OptSys < matlab.mixin.Copyable
         WF_;
         
         % GPU properties
-        useGPU; % use a GPU flag
+        useGPU = 0; % use a GPU flag
         nGPUs;
         DEVICES;
         
@@ -638,12 +638,12 @@ classdef OptSys < matlab.mixin.Copyable
             % OS = ApplyElement(OS,elem_num,n0)
             
             if isa(OS.ELEMENTS_{elem_num},'OptFPM')
-                        % The FPM needs access to the pscale property
-                        OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0,OS.pscale_));
-                        OS.ReIm2WF;
-                    else
-                        OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0));
-                        OS.ReIm2WF;
+                % The FPM needs access to the pscale property
+                OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0,OS.pscale_));
+                OS.ReIm2WF;
+            else
+                OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0));
+                OS.ReIm2WF;
             end
         end % of ApplyElement
             
@@ -673,7 +673,7 @@ classdef OptSys < matlab.mixin.Copyable
             % Initialze directory name to save files with current time
             dirname = datestr(now,'dd_mm_yy_HH:MM');
             
-             % Loop over given elements
+            % Loop over given elements
             for ii = starting_elem:ending_elem
                 if ii == starting_elem
                     fprintf('******************************************\n*    Starting at Element %s    *\n******************************************\n',OS.ELEMENTS_{ii}.name);
@@ -690,7 +690,7 @@ classdef OptSys < matlab.mixin.Copyable
                             
                             % Do the Fresnel Propagation
                             OS.propagate2Elem(propdists(ii),OS.pscale_,lambda);
-
+                            
                         else
                             % If the distance isn't large enough,
                             % don't propagate: OS.WF_ is unchanged
@@ -701,7 +701,7 @@ classdef OptSys < matlab.mixin.Copyable
                     elseif OS.ELEMENTS_{ii}.isFocal_ == 1
                         fprintf('Computing Focused Field using FFT of WF00%d\n',ii-1);
                         OS.setField( OptSys.static_computePSF(OS.WF_,OS.pscale_));
-
+                        
                         
                     elseif OS.ELEMENTS_{ii}.isFocal_ == 2
                         warning('Not Supporting Zoom-FFTs yet\n');
@@ -713,9 +713,9 @@ classdef OptSys < matlab.mixin.Copyable
                         
                     end
                     
-                    % Save 
+                    % Save
                     if OS.savefile == 1
-%                         [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(real(OS.WF_),imag(OS.WF_));
+                        %                         [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(real(OS.WF_),imag(OS.WF_));
                         OptSys.saveWFfits(dirname,OS.WFamp, OS.WFphase, ii-1,'postprop');
                     end
                     
@@ -731,19 +731,19 @@ classdef OptSys < matlab.mixin.Copyable
                     % is. For now I am going to comment it out until I have
                     % thought about it more.
                     %******************************************************
-
+                    
                     if ii > 1
                         % Check if the field has just exited something with
                         % a different index than the original n0
                         if isa(OS.ELEMENTS_{ii-1},'OptLens')
                             n0 = OS.ELEMENTS_{ii-1}.material_.n_;
-%                         elseif isa(OS.ELEMENTS_{ii-1}, 'OptFPM')
-%                             n0 = OS.ELEMENTS_{ii-1}.material_.n_;
+                            %                         elseif isa(OS.ELEMENTS_{ii-1}, 'OptFPM')
+                            %                             n0 = OS.ELEMENTS_{ii-1}.material_.n_;
                         else
                             n0 = n0_;
                         end
                     end
-
+                    
                     
                     % Apply the element
                     OS.ApplyElement(ii,n0);
@@ -751,11 +751,11 @@ classdef OptSys < matlab.mixin.Copyable
                         OS.show;
                     end
                     
-                    % Save 
+                    % Save
                     if OS.savefile == 1
                         OptSys.saveWFfits(dirname,OS.WFamp, OS.WFphase, ii-1,'preprop');
                     end
-
+                    
                 else % last element
                     
                     descr = OS.ELEMENTS_{ii}.describe;
@@ -769,7 +769,7 @@ classdef OptSys < matlab.mixin.Copyable
                         if abs(propdists(ii)) > proplim
                             % Do the Fresnel Propagation
                             OS.propagate2Elem(propdists(ii),OS.pscale_,lambda);
-
+                            
                         else
                             % If the distance isn't large enough,
                             % don't propagate: OS.WF_ is unchanged
@@ -779,7 +779,7 @@ classdef OptSys < matlab.mixin.Copyable
                     elseif OS.ELEMENTS_{ii}.isFocal_ == 1
                         fprintf('Computing Focused Field using FFT of WF00%d\n',ii-1);
                         OS.computePSF_normalize(OS.WF_);
-
+                        
                         
                         if OS.savefile == 1
                             OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
@@ -1137,10 +1137,7 @@ classdef OptSys < matlab.mixin.Copyable
             
         end % of PropagateSystem4
         
-        %% GPU Methods -- Nothing available yet...getting all functionality working before accelerating
-        % Evaluations folder holds images of performance profiles. This can
-        % be used to help. The likely candidates for acceleration are the
-        % for loops handling multiple wavelengths, and 
+        %% GPU Methods
         
         function OS = initGPU(OS)
             
@@ -1189,6 +1186,8 @@ classdef OptSys < matlab.mixin.Copyable
             
             % Make sure the field is of type float
             OS.setdatatype('single');
+            
+            if OS.nGPUs	 == 1
             % Send field to gpu
             OS.setField(gpuArray(OS.WF_));
             
@@ -1203,7 +1202,24 @@ classdef OptSys < matlab.mixin.Copyable
             fprintf('*         Now Using GPU %s        *\n',OS.DEVICES{1}.Name);
             fprintf('***************************************************\n');
 %             warning('GPU:PROPNS','Propagation is currently pixel by pixel, and not a matrix multiply. This will be incredibly slow on GPU. Consider using CPU');
-            
+            elseif OS.nGPUs == 2
+                % Send field to gpu
+                OS.setField(gpuArray(OS.WF_));
+                
+                for ii = 1:numElems
+                    % Make sure the zsag_ is of type float
+                    OS.ELEMENTS_{ii}.setdatatype('single');
+                    % Send zsag_ to the active gpu
+                    OS.ELEMENTS_{ii}.set_zsag(gpuArray(OS.ELEMENTS_{ii}.zsag_));
+                end
+                
+                fprintf('\n\n\n***************************************************\n');
+                fprintf('*         Now Using GPU %s        *\n',OS.DEVICES{1}.Name);
+                fprintf('***************************************************\n');
+                
+                
+            end
+                
         end % of GPUify
         
         
