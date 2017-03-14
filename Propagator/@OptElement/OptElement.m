@@ -213,11 +213,23 @@ classdef OptElement < matlab.mixin.Copyable
             tmp = uint8(zeros(elem.gridsize_(1),elem.gridsize_(2),numLambdas));
         end
         
-        for ii = 1:numLambdas
-            tmp(:,:,ii) = elem.zsag_;
+        if isa(elem.zsag_,'gpuArray')
+            zsag = gather(elem.zsag_);
+            for ii = 1:numLambdas
+                tmp(:,:,ii) = zsag;
+            end
+            elem.set_zsag(gpuArray(tmp));
+            clear tmp;
+        else
+            for ii = 1:numLambdas
+                tmp(:,:,ii) = elem.zsag_;
+            end
+            elem.set_zsag(tmp);
+            clear tmp;
         end
-        elem.set_zsag(tmp);
-        clear tmp;
+        
+        
+        
     end % of Cubify
     
     
