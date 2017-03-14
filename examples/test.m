@@ -17,6 +17,12 @@ lambda = linspace(lambda_0 - (lambda_0*(bandwidth/2)),lambda_0 + (lambda_0*(band
 % Define index of refraction of medium Optical System is in
 n0 = 1;
 
+% Beam Diameter
+D = 0.022 * 2;
+
+% lambda / D
+ld = lambda_0 / D;
+
 %% Make the OptSys Object
 
 % Construct
@@ -47,7 +53,7 @@ props{1} = 'System Pupil';      % string of your choosing for name of object
 props{2} = 0;                   % code for material
 props{3} = true;                % amplitude only flag
 props{4} = 0;                   % z position
-props{5} = 1;                   % Physical Diameter [m]
+props{5} = D;                   % Physical Diameter [m]
 props{6} = 'pup_1024.fits';     % mask [matrix or /path/filename.fits]
 
 % Construct
@@ -62,7 +68,7 @@ props{1} = 'Mirror 1';          % string of your choosing for name of object
 props{2} = 0;                   % focal length [m]
 props{3} = 0;                   % isFocal code
 props{4} = 1.19999997;          % z position
-props{5} = 25.4e-3;             % Physical Diameter [m]
+props{5} = D;                   % Physical Diameter [m]
 props{6} = 'piaam0z.fits';      % zsag [matrix or /path/filename.fits]
 
 M1 = OptMirror(props);
@@ -75,7 +81,7 @@ props{1} = 'Mirror 2';          % string of your choosing for name of object
 props{2} = 0;                   % focal length [m]
 props{3} = 0;                   % isFocal code
 props{4} = -1.102609;           % z position
-props{5} = 25.4e-3;             % Physical Diameter [m]
+props{5} = D;                   % Physical Diameter [m]
 props{6} = 'piaam1z.fits';      % zsag [matrix or /path/filename.fits]
 
 M2 = OptMirror(props);
@@ -96,7 +102,7 @@ props{2} = 2;                   % code for material
 props{3} = true;                % amplitude only flag
 props{4} = 1;                   % isFocal_ [determines how the propagator applies the FPM]
 props{5} = -1.102609;           % z position
-props{6} = 1;                   % Physical Diameter [m]
+props{6} = 5*ld;                % Physical Diameter [m]
 props{7} = 1-circ;              % mask [matrix or /path/filename.fits]
 
 FPM = OptFPM(props);
@@ -110,7 +116,7 @@ props{1} = 'Lyot Stop';         % string of your choosing for name of object
 props{2} = 0;                   % code for material
 props{3} = true;                % amplitude only flag
 props{4} = -0.185609;           % z position
-props{5} = 25.4e-3;             % Physical Diameter [m]
+props{5} = D;                   % Physical Diameter [m]
 props{6} = 'LyotStop0.fits';    % mask [matrix or /path/filename.fits]
 
 LYOT = OptLyot(props);
@@ -120,7 +126,7 @@ LYOT = OptLyot(props);
 %% Make an OptDetector Object
 props = cell(3,1);
 props{1} = 'Detector';          % string of your choosing for name of object
-props{2} = 25.4e-3;             % diameter
+props{2} = D;                   % diameter
 props{3} = ones(1024);          % zsag
 DET = OptDetector(props);
 
@@ -140,13 +146,25 @@ ELEMENTS{6} = DET;
 OS.addSequentialElements(ELEMENTS);
 
 % Turn verbose back on to plot intermediate Propagator steps
-OS.toggle_verbose('on');
+OS.toggle_verbose('off');
 
 %% Propagate through the Optical System
 
 % Set the input field
-OS.planewave(single(1),length(lambda));
+OS.planewave(single(1),length(OS.lambda_array_));
 % OS.show;
 
 % Propagate
+tic;
 OS.PropagateSystem1(1,6,n0);
+toc
+
+%% Do it again on the GPU
+
+% Set the input field
+OS.planewave(single(1),length(OS.lambda_array_));
+
+tic;
+OS.GPUify;
+OS.PropagateSystem1(1,6,n0);
+toc
