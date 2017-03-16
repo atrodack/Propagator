@@ -35,8 +35,14 @@ OS.name = 'PIAACMC Optical System';
 OS.setCentralWavelength(lambda_0);
 OS.setLambdaarray(lambda);
 
+% Set the beam radius
+OS.setBeamrad(100);
+
 % Set the pixel scale
 OS.setPscale(0.00011);
+
+% Set the f-number
+OS.setFnum(80);
 
 % Set whether or not to save intermediate steps as FITS
 OS.savefile = 0;
@@ -94,7 +100,8 @@ M2 = OptMirror(props);
 x = linspace(-511,512,1024)*OS.pscale_;
 [X,Y] = meshgrid(x);
 R = sqrt(X.^2 + Y.^2);
-circ = single(R<=0.00035);
+circ = single(R<=0.00035*0.75);
+circ = circshift(circ,[1,1]);
 
 props = cell(7,1);
 props{1} = 'FPM';               % string of your choosing for name of object
@@ -146,7 +153,7 @@ ELEMENTS{6} = DET;
 OS.addSequentialElements(ELEMENTS);
 
 % Turn verbose back on to plot intermediate Propagator steps
-OS.toggle_verbose('off');
+OS.toggle_verbose('on');
 
 %% Propagate through the Optical System
 

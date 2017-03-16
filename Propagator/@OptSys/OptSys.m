@@ -20,8 +20,9 @@ classdef OptSys < matlab.mixin.Copyable
         
         % System Parameters
         numElements_ = 0; % number of elements in system
-        f_number_; % F/# of system
         conjugations_ = zeros(1,1); % list of z locations
+        f_number_; % F/# of system
+        beam_radius_; % radius of beam in pixels
         pscale_; % size of pixels in meters
         gridsize_; %
         lambda0_; % central wavelength
@@ -40,6 +41,7 @@ classdef OptSys < matlab.mixin.Copyable
         WFamp;
         WFphase;
         WF_;
+        PSF_;
         
         % GPU properties
         useGPU = 0; % use a GPU flag
@@ -200,6 +202,12 @@ classdef OptSys < matlab.mixin.Copyable
             OS.pscale_ = val;
         end % of setPscale
         
+        function OS = setBeamrad(OS,val)
+            % OS = setBeamrad(OS,val)
+            
+            OS.beam_radius_ = val;
+            
+        end % of setBeamrad
         
         function OS = setLambdaarray(OS,lambdalist)
             % OS = setLambdaarray(OS,lambdalist)
@@ -313,6 +321,11 @@ classdef OptSys < matlab.mixin.Copyable
             
         end % of setConjugations
         
+        function OS = setFnum(OS,val)
+            % OS = setFnum(OS,val)
+            
+            OS.f_number_ = val;
+        end % of setFnum
         
         function OS = getElementFNum(OS,element_num)
             % OS = getElementFNum(OS,element_num)
@@ -335,33 +348,123 @@ classdef OptSys < matlab.mixin.Copyable
             
         end % of setGridsize
         
-        function show(OS)
-        % show(OS)
-        % Plots matrix stored in zsag_
-        numLambdas = size(OS.lambda_array_,2);
-        
-        if isreal(OS.WF_) == 1
-            figure;
-            for ii = 1:numLambdas
-                imagesc(OS.WF_(:,:,ii))
-                plotUtils(sprintf('WF lambda %d',ii));
-                drawnow;
-            end
-        else
-            figure;
-            for ii = 1:numLambdas
-                subplot(1,2,1)
-                imagesc(OS.WFamp(:,:,ii));
-                plotUtils(sprintf('WF Amplitude, lambda %d',ii));
-                subplot(1,2,2)
-                imagesc(OS.WFphase(:,:,ii));
-                plotUtils(sprintf('WF Phase, lambda %d',ii));
-                drawnow;
+        function show(OS,fignum)
+            % show(OS)
+            % Plots matrix stored in zsag_
+            numLambdas = size(OS.lambda_array_,2);
+            
+            if isreal(OS.WF_) == 1
+                if nargin < 2
+                    figure;
+                else
+                    figure(fignum);
+                end
+                for ii = 1:numLambdas
+                    imagesc(OS.WF_(:,:,ii))
+                    plotUtils(sprintf('WF lambda %d',ii));
+                    drawnow;
+                end
+            else
+                if nargin < 2
+                    figure;
+                else
+                    figure(fignum);
+                end
+                for ii = 1:numLambdas
+                    subplot(1,2,1)
+                    imagesc(OS.WFamp(:,:,ii));
+                    plotUtils(sprintf('WF Amplitude, lambda %d',ii));
+                    subplot(1,2,2)
+                    imagesc(OS.WFphase(:,:,ii));
+                    plotUtils(sprintf('WF Phase, lambda %d',ii));
+                    drawnow;
+                end
+                
             end
             
-        end
+        end % of show
         
-    end % of show
+        function show_PP(OS,fignum)
+            % show(OS,fignum)
+            numLambdas = size(OS.lambda_array_,2);
+            
+            [xx,yy] = OS.PPcoords;
+            
+            if isreal(OS.WF_) == 1
+                if nargin < 2
+                    figure;
+                else
+                    figure(fignum);
+                end
+                for ii = 1:numLambdas
+%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WF_(:,:,ii))
+                    imagesc(OS.WF_(:,:,ii));
+                    plotUtils(sprintf('WF\n lambda %g',OS.lambda_array_(ii)),'\lambda','\lambda');
+                    drawnow;
+                end
+            else
+                if nargin < 2
+                    figure;
+                else
+                    figure(fignum);
+                end
+                for ii = 1:numLambdas
+                    subplot(1,2,1)
+%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFamp(:,:,ii));
+                    imagesc(OS.WFamp(:,:,ii));
+                    plotUtils(sprintf('WF Amplitude\n lambda %d',ii),'\lambda','\lambda');
+                    subplot(1,2,2)
+%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFphase(:,:,ii));
+                    imagesc(OS.WFphase(:,:,ii));
+                    plotUtils(sprintf('WF Phase\n lambda %d',ii),'\lambda','\lambda');
+                    drawnow;
+                end
+                
+            end
+            
+        end % of show_PP
+        
+        function show_FP(OS,fignum)
+            % show(OS,fignum)
+            numLambdas = size(OS.lambda_array_,2);
+            
+            [xx,yy,dTH] = OS.FPcoords;
+            
+            if isreal(OS.WF_) == 1
+                if nargin < 2
+                    figure;
+                else
+                    figure(fignum);
+                end
+                for ii = 1:numLambdas
+                    normalizer = max(max(OS.WF_));
+%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WF_(:,:,ii))
+                    imagesc(OS.WF_(:,:,ii));
+                    plotUtils(sprintf('WF\n lambda %d',ii),'\lambda / D', '\lambda / D');
+                    drawnow;
+                end
+            else
+                if nargin < 2
+                    figure;
+                else
+                    figure(fignum);
+                end
+                for ii = 1:numLambdas
+                    normalizer = max(max(OS.WF_));
+                    subplot(1,2,1)
+%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFamp(:,:,ii));
+                    imagesc(OS.WFamp(:,:,ii));
+                    plotUtils(sprintf('WF Amplitude\n lambda %g',OS.lambda_array_(ii)),'\lambda / D', '\lambda / D');
+                    subplot(1,2,2)
+%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFphase(:,:,ii));
+                    imagesc(OS.WFphase(:,:,ii));
+                    plotUtils(sprintf('WF Phase\n lambda %g',OS.lambda_array_(ii)),'\lambda / D', '\lambda / D');
+                    drawnow;
+                end
+                
+            end
+            
+        end % of show_FP
         
         
         %% Propagation Utility Methods
@@ -551,41 +654,10 @@ classdef OptSys < matlab.mixin.Copyable
         end % of computePropdists
         
         
-        % Switch these to using internal WF_, not input!
-        function OS = computePSF(OS,WFin)
-            % OS = computePSF(OS,WFin)
-            
-            sz = size(WFin);
-            if length(sz) == 2
-                sz(3) = 1;
-            end;
-            
-            % Initialize
-            WFfocus = zeros(sz(1),sz(2),sz(3));
-            WFreal = WFfocus;
-            WFimag = WFfocus;
-            
-            for jj = 1:sz(3)
-                WFfocus(:,:,jj) = fftshift(fft2(fftshift(WFin(:,:,jj)))) .* (sz(1).* sz(2) .* OS.pscale_ .* OS.pscale_);
-                WFreal(:,:,jj) = real(WFfocus(:,:,jj));
-                WFimag(:,:,jj) = imag(WFfocus(:,:,jj));
-                [OS.WFamp(:,:,jj),OS.WFphase(:,:,jj)] = WFReIm2AmpPhase(WFreal(:,:,jj),WFimag(:,:,jj));
-                OS.AmpPhase2WF(jj);
-                psfa0 = abs(OS.WF_).^2;
-                
-                % Plot
-                if OS.verbose == 1
-                    figure(99999)
-                    imagesc(psfa0(:,:,jj));
-                    plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)));
-                    drawnow;
-                end
-            end
-            
-        end % computePSF
+
         
-        function OS = computePSF_normalize(OS,WFin)
-            % OS = computePSF(OS,WFin)
+        function PSF = computePSF(OS,WFin)
+            % OS = computePSF(OS,WFin,z)
             
             if nargin < 2
                 WFin = OS.WF_;
@@ -595,28 +667,52 @@ classdef OptSys < matlab.mixin.Copyable
             if length(sz) == 2
                 sz(3) = 1;
             end
-            
+
             WFfocus = fftshift(fft2(fftshift(WFin))) .* (sz(1).* sz(2) .* OS.pscale_ .* OS.pscale_);
+
             WFreal = real(WFfocus);
             WFimag = imag(WFfocus);
             [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
             OS.AmpPhase2WF();
-            psfa0 = abs(OS.WF_).^2;
+            PSF = abs(OS.WF_).^2;
+            OS.PSF_ = PSF;
 
-            % Plot
-            if OS.verbose == 1
-                for jj = 1:sz(3)
-                    normalizer = max(max(psfa0(:,:,jj)));
-                    figure()
-                    imagesc(log10(psfa0(:,:,jj)/normalizer),[-5,0]);
-                    plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)));
-                    drawnow;
-                end
-            end
+
+        end % computePSF
+        
+        function [xx,yy] = PPcoords(OS)
+            % [xx,yy] = PPcoords(OS)
             
-        end % computePSF_normalize
+            sz = size(OS.WF_);
+            lambda = OS.lambda_array_;
+            
+            xx = zeros(sz(2),1,sz(3));
+            yy = xx;
+            
+            for jj = 1:length(lambda)
+                xx(:,:,jj) = (1/lambda(jj))*(-((sz(2)/2)):((sz(2))/2 -1))*(OS.pscale_);
+                yy(:,:,jj) = (1/lambda(jj))*(-((sz(1)/2)):((sz(1))/2 -1))*(OS.pscale_);
+            end
+        end % of PPcoords
         
-        
+        function [thx,thy,dth] = FPcoords(OS)
+            % [xx,yy] = FPcoords(OS)
+            sz = size(OS.WF_);
+            lambda = OS.lambda_array_;
+            k = (2*pi) ./ lambda;
+            
+            thx = zeros(sz(2),1,sz(3));
+            thy = thx;
+            
+            dk = 2*pi / (OS.pscale_ * sz(1));
+            dth = dk ./ k;
+            for jj = 1:length(lambda)
+                thx(:,:,jj) = ((-((sz(2))/2):((sz(2))/2)-1)*(dk))/k(jj)*206265;
+                thy(:,:,jj) = ((-((sz(1))/2):((sz(1))/2)-1)*(dk))/k(jj)*206265;
+%                 thx(:,:,jj) = (lambda(jj)*((-((sz(2)-1)/2):((sz(2)-1)/2))))/((OS.pscale_)*(sz(2)-1));
+%                 thy(:,:,jj) = (lambda(jj)*((-((sz(1)-1)/2):((sz(1)-1)/2))))/((OS.pscale_)*(sz(1)-1));
+            end
+        end % of FPcoords
         
         %% System Propagation Methods
         % See static methods for actual Fresnel propagation method
@@ -638,8 +734,11 @@ classdef OptSys < matlab.mixin.Copyable
             % OS = ApplyElement(OS,elem_num,n0)
             
             if isa(OS.ELEMENTS_{elem_num},'OptFPM')
-                % The FPM needs access to the pscale property
-                OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0,OS.pscale_));
+                % The FPM needs access to the pscale property and a
+                % propdist
+                D = 2*OS.beam_radius_ * OS.pscale_;
+                z = OS.f_number_ * D;
+                OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0,OS.pscale_,z));
                 OS.ReIm2WF;
             else
                 OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0));
@@ -683,7 +782,7 @@ classdef OptSys < matlab.mixin.Copyable
                 if ii ~= ending_elem
                     
                     % Propagate
-                    if OS.ELEMENTS_{ii}.isFocal_ == 0
+                    if OS.ELEMENTS_{ii}.propagation_method_ == 0
                         if abs(propdists(ii)) > proplim
                             fprintf('\nPropagating %g meters to element %s\n\n',propdists(ii), OS.ELEMENTS_{ii}.name);
                             
@@ -698,16 +797,18 @@ classdef OptSys < matlab.mixin.Copyable
                             OS.ReIm2WF;
                         end
                         
-                    elseif OS.ELEMENTS_{ii}.isFocal_ == 1
+                    elseif OS.ELEMENTS_{ii}.propagation_method_ == 1
                         fprintf('Computing Focused Field using FFT of WF00%d\n',ii-1);
-                        OS.setField( OptSys.static_computePSF(OS.WF_,OS.pscale_));
+                        D = 2*OS.beam_radius_ * OS.pscale_;
+                        z = OS.f_number_ * D;
+                        OS.setField( OptSys.FraunhoferPropWF(OS.WF_,z,OS.pscale_,OS.lambda_array_));
                         
                         
-                    elseif OS.ELEMENTS_{ii}.isFocal_ == 2
+                    elseif OS.ELEMENTS_{ii}.propagation_method_ == 2
                         warning('Not Supporting Zoom-FFTs yet\n');
                         fprintf('Implementing Zoom-FFTs for FPM. This is done by Applying the FPM\n');
                         
-                    elseif OS.ELEMENTS_{ii}.isFocal_ == 3
+                    elseif OS.ELEMENTS_{ii}.propagation_method_ == 3
                         warning('Not Supporting Convolution with FPM yet\n');
                         fprintf('Implementing Convolution with Babinets Principle for FPM. This is done by Applying the FPM\n');
                         
@@ -748,7 +849,7 @@ classdef OptSys < matlab.mixin.Copyable
                     % Apply the element
                     OS.ApplyElement(ii,n0);
                     if OS.verbose == true
-                        OS.show;
+                        OS.show_PP;
                     end
                     
                     % Save
@@ -765,7 +866,7 @@ classdef OptSys < matlab.mixin.Copyable
                     fprintf('\n====================================================\n\n');
                     
                     % Propagate
-                    if OS.ELEMENTS_{ii}.isFocal_ == 0
+                    if OS.ELEMENTS_{ii}.propagation_method_ == 0
                         if abs(propdists(ii)) > proplim
                             % Do the Fresnel Propagation
                             OS.propagate2Elem(propdists(ii),OS.pscale_,lambda);
@@ -776,20 +877,30 @@ classdef OptSys < matlab.mixin.Copyable
                             OS.ReIm2WF;
                         end
                         
-                    elseif OS.ELEMENTS_{ii}.isFocal_ == 1
+                    elseif OS.ELEMENTS_{ii}.propagation_method_ == 1
                         fprintf('Computing Focused Field using FFT of WF00%d\n',ii-1);
-                        OS.computePSF_normalize(OS.WF_);
+                        PSFa0 = OS.computePSF(OS.WF_);
+                        [xx,yy,dTH] = OS.FPcoords;
                         
+                        figure;
+                        for jj = 1:length(OS.lambda_array_)
+%                             imagesc(xx(:,:,jj),yy(:,:,jj),PSFa0(:,:,jj));
+%                             imagesc(xx(:,:,jj),yy(:,:,jj),log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,jj)))),[-5,0]);
+%                             imagesc(PSFa0(:,:,jj));
+                            imagesc(log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,floor(length(OS.lambda_array_)/2))))),[-6,0]);
+                            plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)),'\lambda / D','\lambda / D');
+                            drawnow;
+                        end
                         
                         if OS.savefile == 1
                             OptSys.savePSFfits(dirname,OS.WFamp, OS.WFphase, ii);
                         end
                         
-                    elseif OS.ELEMENTS_{ii}.isFocal_ == 2
+                    elseif OS.ELEMENTS_{ii}.propagation_method_ == 2
                         fprintf('Not Supporting Zoom-FFTs yet\n');
                         
                         
-                    elseif OS.ELEMENTS_{ii}.isFocal_ == 3
+                    elseif OS.ELEMENTS_{ii}.propagation_method_ == 3
                         fprintf('Not Supporting Convolution with FPM yet\n');
                         
                         
@@ -1203,6 +1314,7 @@ classdef OptSys < matlab.mixin.Copyable
             fprintf('***************************************************\n');
 %             warning('GPU:PROPNS','Propagation is currently pixel by pixel, and not a matrix multiply. This will be incredibly slow on GPU. Consider using CPU');
             elseif OS.nGPUs == 2
+                
                 % Send field to gpu
                 OS.setField(gpuArray(OS.WF_));
                 
@@ -1342,51 +1454,95 @@ classdef OptSys < matlab.mixin.Copyable
             
         end % of FresnelPropagateWF
         
-        
-        function WFout = static_computePSF(WFin, pscale_)
-            % WFout = static_computePSF(OS,WFin)
-               
+        function WFout = FraunhoferPropWF(WFin, propdist, pscale, lambda)
+            % OS = computePSF(OS,WFin,z)
+
             sz = size(WFin);
             if length(sz) == 2
                 sz(3) = 1;
             end
             
-            WFout = WFin;
+            k = (2*pi)./lambda;
             
-            WFfocus = fftshift(fft2(fftshift(WFin))) .* (sz(1).* sz(2) .* pscale_ .* pscale_);
+            if isa(WFin,'gpuArray')
+                flag = true;
+                tmp = gather(WFin);
+                datatype = class(tmp);
+                clear tmp;
+            else
+                datatype = class(WFin);
+                flag = false;
+            end
+            
+            if strcmp(datatype,'single')
+                WFfocus = single(zeros(size(WFin,1),size(WFin,2),sz(3)));
+                if flag
+                    WFfocus = gpuArray(WFfocus);
+                end
+            elseif strcmp(datatype,'double')
+                WFfocus = double(zeros(size(WFin,1),size(WFin,2),sz(3)));
+            elseif strcmp(datatype,'uint8')
+                WFfocus = uint8(zeros(size(WFin,1),size(WFin,2),sz(3)));
+            else
+                error('Unsupported data type');
+            end
+            
+            for ii = 1:length(lambda)
+                coeff = ((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
+                WFfocus(:,:,ii) = coeff * fftshift(fft2(fftshift(WFin(:,:,ii)))) .* (sz(1).* sz(2) .* pscale .* pscale);
+            end
             WFreal = real(WFfocus);
             WFimag = imag(WFfocus);
             [WFamp,WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
-            for ii = 1:size(WFamp,3)
-                    WFout(:,:,ii) = WFamp(:,:,ii) .* exp(-1i * WFphase(:,:,ii));
-            end
+            WFout = WFamp .* exp(1i .* WFphase);
 
-            
-        end % static_computePSF
+        end % FraunhoferProp
         
-        function WFout = static_move2PP(WFin, pscale_)
+        
+        function WFout = move2PP(WFin, propdist, pscale, lambda)
             % WFout = static_move2PP(OS,WFin)
-               
+
             sz = size(WFin);
             if length(sz) == 2
                 sz(3) = 1;
             end
             
-            WFout = WFin;
+            k = (2*pi)./lambda;
             
-            WFfocus = ifftshift(ifft2(ifftshift(WFin))) .* (sz(1).* sz(2) .* (pscale_) .* (pscale_))^-1;
+            if isa(WFin,'gpuArray')
+                flag = true;
+                tmp = gather(WFin);
+                datatype = class(tmp);
+                clear tmp;
+            else
+                datatype = class(WFin);
+                flag = false;
+            end
+            
+            if strcmp(datatype,'single')
+                WFfocus = single(zeros(size(WFin,1),size(WFin,2),sz(3)));
+                if flag
+                    WFfocus = gpuArray(WFfocus);
+                end
+            elseif strcmp(datatype,'double')
+                WFfocus = double(zeros(size(WFin,1),size(WFin,2),sz(3)));
+            elseif strcmp(datatype,'uint8')
+                WFfocus = uint8(zeros(size(WFin,1),size(WFin,2),sz(3)));
+            else
+                error('Unsupported data type');
+            end
+            
+            for ii = 1:length(lambda)
+                coeff = ((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
+                WFfocus(:,:,ii) = coeff * ifftshift(ifft2(ifftshift(WFin(:,:,ii)))) .* (sz(1).* sz(2) .* (pscale) .* (pscale))^-1;
+            end
             WFreal = real(WFfocus);
             WFimag = imag(WFfocus);
             [WFamp,WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
-            for ii = 1:size(WFamp,3)
-                    WFout(:,:,ii) = WFamp(:,:,ii) .* exp(-1i * WFphase(:,:,ii));
-            end
-            
-            % Fix shift induced by MATLAB
-            WFout = flipud(WFout);
+            WFout = WFamp .* exp(1i .* WFphase);
 
             
-        end % static_move2PP
+        end % move2PP
         
         function saveWFfits(dirname,WFamp,WFphase,ind,location)
             % saveWFfits(dirname,WFamp,WFphase,ind,location)
