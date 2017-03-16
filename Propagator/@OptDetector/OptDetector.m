@@ -34,7 +34,7 @@ classdef OptDetector < OptElement
             elem.set_zsag(A{3,1});
             elem.set_z_position(0); %isn't used, but needed to make code happy
             elem.setdatatype();
-            elem.set_isFocal(1);
+            elem.set_propagation_method(1);
             elem.addnewline(2);
 
         end % of contructor

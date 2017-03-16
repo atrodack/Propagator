@@ -24,7 +24,7 @@ classdef OptElement < matlab.mixin.Copyable
         material_;
         z_position_; % position downstream from previous element (pupil is z = 0)
         diameter_; % diameter of element in meters
-        isFocal_ = 0;
+        propagation_method_ = 0;
         gridsize_ = [1024, 1024]; % default gridsize
         
         % Map of Optic Surface
@@ -101,6 +101,17 @@ classdef OptElement < matlab.mixin.Copyable
         elem.zsag_ = A;
     end % of set_zsag
         
+    function elem = set_propagation_method(elem,code)
+            % elem = set_propagation_method
+            % sets the propagation type for focusing:
+            % code = 0 --> Fresnel
+            % code = 1 --> Fourier Transform
+            % code = 2 --> Zoom-FFT
+            % code = 3 --> Convolution
+            
+            elem.propagation_method_ = code;
+    end % of set_propagation_method
+    
     function elem = set_name(elem,name)
         % elem = set_name(elem,name)
         % sets the name of the element
@@ -182,19 +193,23 @@ classdef OptElement < matlab.mixin.Copyable
         
         if isreal(elem.zsag_) == 1
             figure;
-            imagesc(elem.zsag_)
-            plotUtils(sprintf('Sag of Element %s',elem.name));
+            for ii = 1:size(elem.zsag_,3)
+                imagesc(elem.zsag_(:,:,ii))
+                plotUtils(sprintf('Sag of Element %s',elem.name));
+            end
         else
             re = real(elem.zsag_);
             im = imag(elem.zsag_);
             [sagamp,sagphase] = WFReIm2AmpPhase(re,im);
             figure;
-            subplot(1,2,1)
-            imagesc(sagamp);
-            plotUtils(sprintf('Sag Amplitude of Element %s',elem.name));
-            subplot(1,2,2)
-            imagesc(sagphase);
-            plotUtils(sprintf('Sag Phase of Element %s',elem.name));
+            for ii = 1:size(elem.zsag_,3)
+                subplot(1,2,1)
+                imagesc(sagamp(:,:,ii));
+                plotUtils(sprintf('Sag Amplitude of Element %s',elem.name));
+                subplot(1,2,2)
+                imagesc(sagphase(:,:,ii));
+                plotUtils(sprintf('Sag Phase of Element %s',elem.name));
+            end
             
         end
         

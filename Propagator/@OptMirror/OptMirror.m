@@ -35,7 +35,7 @@ classdef OptMirror < OptElement
             elem.set_name(A{1,1});
             elem.set_material(2); %Mirror should only be allowed to be a mirror
             elem.set_focal_length(A{2,1});
-            elem.set_isFocal(A{3,1});
+            elem.set_propagation_method(A{3,1});
             elem.set_z_position(A{4,1});
             elem.set_diameter(A{5,1});
             elem.set_zsag(A{6,1});
@@ -55,17 +55,6 @@ classdef OptMirror < OptElement
             elem.focalLength = f;
             
         end % of set_focal_length
-        
-        function elem = set_isFocal(elem,code)
-            % elem = set_isFocal
-            % sets the propagation type for focusing:
-            % code = 0 --> Fresnel
-            % code = 1 --> Fourier Transform
-            % code = 2 --> Zoom-FFT
-            % code = 3 --> Convolution
-            
-            elem.isFocal_ = code;
-        end % of set_isFocal
         
         
         %% Methods for probing properties

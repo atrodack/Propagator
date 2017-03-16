@@ -36,7 +36,7 @@ classdef OptFPM < OptElement
             elem.set_name(A{1,1});
             elem.set_material(A{2,1});
             elem.set_amponly(A{3,1});
-            elem.set_isFocal(A{4,1});
+            elem.set_propagation_method(A{4,1});
             elem.set_z_position(A{5,1});
             elem.set_diameter(A{6,1});
             elem.set_zsag(A{7,1});
@@ -57,22 +57,12 @@ classdef OptFPM < OptElement
             
         end % of set_focal_length
         
-        function elem = set_isFocal(elem,code)
-            % elem = set_isFocal
-            % sets the propagation type for focusing:
-            % code = 0 --> Fresnel
-            % code = 1 --> Fourier Transform
-            % code = 2 --> Zoom-FFT
-            % code = 3 --> Convolution
-            
-            elem.isFocal_ = code;
-        end % of set_isFocal
         
         %% Propagation Methods
         % Should only be used by the propagation calls from OptSys
         
         
-        function WFout = ApplyElement(elem,WFin,lambda,n0,pscale)
+        function WFout = ApplyElement(elem,WFin,lambda,n0,pscale,propdist)
             % OS = ApplyElement(elem,WFin,lambda)
             % Applys element to current wavefront
             
@@ -91,10 +81,10 @@ classdef OptFPM < OptElement
                 end
             end
             
-            if elem.isFocal_ == 0
+            if elem.propagation_method_ == 0
                 error('Not in a focal plane');
                 
-            elseif elem.isFocal_ == 1
+            elseif elem.propagation_method_ == 1
                 
                 if elem.amponly ~= false % amplitude mask
                     WFout = WFin .* elem.zsag_;
@@ -105,12 +95,11 @@ classdef OptFPM < OptElement
                 end
                 
                 fprintf('Moving back to pupil plane after FPM application\n');
-                WFout = OptSys.static_move2PP(WFout,pscale);
+                WFout = OptSys.move2PP(WFout,propdist,pscale,lambda);
                 
-            elseif elem.isFocal_ == 2
+            elseif elem.propagation_method_ == 2
                 
-                
-            elseif elem.isFocal == 3
+            elseif elem.propagation_method_ == 3
                 
                 
             end

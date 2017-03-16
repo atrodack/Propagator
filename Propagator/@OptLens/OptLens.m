@@ -36,7 +36,7 @@ classdef OptLens < OptElement
             elem.set_name(A{1,1});
             elem.set_material(A{2,1});
             elem.set_focal_length(A{3,1});
-            elem.set_isFocal(A{4,1});
+            elem.set_propagation_method(A{4,1});
             elem.set_z_position(A{5,1});
             elem.set_diameter(A{6,1});
             elem.set_zsag(A{7,1});
@@ -57,16 +57,6 @@ classdef OptLens < OptElement
             
         end % of set_focal_length
         
-        function elem = set_isFocal(elem,code)
-            % elem = set_isFocal
-            % sets the propagation type for focusing:
-            % code = 0 --> Fresnel
-            % code = 1 --> Fourier Transform
-            % code = 2 --> Zoom-FFT
-            % code = 3 --> Convolution
-            
-            elem.isFocal_ = code;
-        end % of set_isFocal
         
         
         %% Methods for probing properties
