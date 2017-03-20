@@ -1378,6 +1378,20 @@ classdef OptSys < matlab.mixin.Copyable
     %% Static Methods
     methods(Static = true)
         
+        function [Shifted_im] = pixelShift(input, sx, sy)
+            % [Shifted_im] = pixelShift(input, sx, sy)
+            % Static method for shifting matrices by subpixel distances
+            % Only works for shifts of 0<=shift<=1
+            %
+            % input is 2D matrix
+            % sx is pixel shift in x
+            % sy is pixel shift in y
+            
+            tmp = conv2(input,[sx, 1-sx],'same');
+            Shifted_im = conv2(tmp,[sy; 1-sy],'same');
+            
+        end % of pixelShift
+        
         function [ WFout ] = FresnelProp( WFin, z, pscale, lambda )
             
             k = (2*pi)./lambda;
