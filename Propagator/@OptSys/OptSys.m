@@ -668,7 +668,7 @@ classdef OptSys < matlab.mixin.Copyable
                 sz(3) = 1;
             end
 
-            WFfocus = fftshift(fft2(fftshift(WFin))) .* (sz(1).* sz(2) .* OS.pscale_ .* OS.pscale_);
+            WFfocus = fftshift(fft2(fftshift(OptSys.halfpixelShift(WFin,1)))) .* (sz(1).* sz(2) .* OS.pscale_ .* OS.pscale_);
 
             WFreal = real(WFfocus);
             WFimag = imag(WFfocus);
@@ -1382,15 +1382,85 @@ classdef OptSys < matlab.mixin.Copyable
             % [Shifted_im] = pixelShift(input, sx, sy)
             % Static method for shifting matrices by subpixel distances
             % Only works for shifts of 0<=shift<=1
+            % Damages the phase, so probably not the best to do for FPM
             %
             % input is 2D matrix
             % sx is pixel shift in x
             % sy is pixel shift in y
             
-            tmp = conv2(input,[sx, 1-sx],'same');
-            Shifted_im = conv2(tmp,[sy; 1-sy],'same');
+            sz = size(input);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
+            Shifted_im = zeros(sz(1),sz(2),sz(3));
             
+            
+            if sx < 0
+                input = circshift(input,[0,1]);
+                sx = -sx;
+            end
+            if sy < 0
+                input = circshift(input,[1,0]);
+                sy = -sy;
+            end
+            for ii = 1:sz(3)
+                tmp = conv2(input(:,:,ii),[sx, 1-sx],'same');
+                Shifted_im(:,:,ii) = conv2(tmp,[sy; 1-sy],'same');
+            end
         end % of pixelShift
+        
+        function [output] = halfpixelShift(input,direction)
+            % [ouput] = halfpixelShift(input, direction)
+            % Multiplies input by the appropriate phase to shift it by half
+            % a pixel in x and y when using an FFT
+            
+            sz = size(input);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
+            
+            shift = linspace(0,pi,sz(2));
+            [SX,SY] = meshgrid(shift);
+            
+            if direction == 1
+                Tip = exp(-1i.* SX);
+                Tilt = exp(-1i .* SY);
+            elseif direction == -1
+                Tip = exp(1i .* SX);
+                Tilt = exp(1i .* SY);
+            else
+                error('direction is 1 for forward fft, -1 for ifft');
+            end
+            
+            if isa(input,'gpuArray')
+                flag = true;
+                tmp = gather(input);
+                datatype = class(tmp);
+                clear tmp;
+            else
+                datatype = class(input);
+                flag = false;
+            end
+            
+            if strcmp(datatype,'single')
+                output = single(zeros(sz(1),sz(2),sz(3)));
+                if flag
+                    output = gpuArray(output);
+                end
+            elseif strcmp(datatype,'double')
+                output = double(zeros(sz(1),sz(2),sz(3)));
+            elseif strcmp(datatype,'uint8')
+                output = uint8(zeros(sz(1),sz(2),sz(3)));
+            else
+                error('Unsupported data type');
+            end
+            
+            for ii = 1:sz(3)
+                output(:,:,ii) = input(:,:,ii) .* Tip .* Tilt;
+            end
+            
+            
+        end % of halfpixelShift
         
         function [ WFout ] = FresnelProp( WFin, z, pscale, lambda )
             
@@ -1503,7 +1573,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             for ii = 1:length(lambda)
                 coeff = ((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
-                WFfocus(:,:,ii) = coeff * fftshift(fft2(fftshift(WFin(:,:,ii)))) .* (sz(1).* sz(2) .* pscale .* pscale);
+                WFfocus(:,:,ii) = coeff * fftshift(fft2(fftshift(OptSys.halfpixelShift( WFin(:,:,ii),1 ) ))) .* (sz(1).* sz(2) .* pscale .* pscale);
             end
             WFreal = real(WFfocus);
             WFimag = imag(WFfocus);
@@ -1534,24 +1604,26 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
             if strcmp(datatype,'single')
-                WFfocus = single(zeros(size(WFin,1),size(WFin,2),sz(3)));
+                WFpupil = single(zeros(size(WFin,1),size(WFin,2),sz(3)));
                 if flag
-                    WFfocus = gpuArray(WFfocus);
+                    WFpupil = gpuArray(WFpupil);
                 end
             elseif strcmp(datatype,'double')
-                WFfocus = double(zeros(size(WFin,1),size(WFin,2),sz(3)));
+                WFpupil = double(zeros(size(WFin,1),size(WFin,2),sz(3)));
             elseif strcmp(datatype,'uint8')
-                WFfocus = uint8(zeros(size(WFin,1),size(WFin,2),sz(3)));
+                WFpupil = uint8(zeros(size(WFin,1),size(WFin,2),sz(3)));
             else
                 error('Unsupported data type');
             end
             
+            
+            
             for ii = 1:length(lambda)
-                coeff = ((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
-                WFfocus(:,:,ii) = coeff * ifftshift(ifft2(ifftshift(WFin(:,:,ii)))) .* (sz(1).* sz(2) .* (pscale) .* (pscale))^-1;
+                coeff = (((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist)))^-1;
+                WFpupil(:,:,ii) = coeff * ifftshift(ifft2(ifftshift(  WFin(:,:,ii) ))) .* (sz(1).* sz(2) .* (pscale) .* (pscale))^-1;
             end
-            WFreal = real(WFfocus);
-            WFimag = imag(WFfocus);
+            WFreal = real(WFpupil);
+            WFimag = imag(WFpupil);
             [WFamp,WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
             WFout = WFamp .* exp(1i .* WFphase);
 
