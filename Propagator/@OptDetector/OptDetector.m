@@ -39,16 +39,6 @@ classdef OptDetector < OptElement
 
         end % of contructor
         
-        function elem = set_isFocal(elem,code)
-            % elem = set_isFocal
-            % sets the propagation type for focusing:
-            % code = 0 --> Fresnel
-            % code = 1 --> Fourier Transform
-            % code = 2 --> Zoom-FFT
-            % code = 3 --> Convolution
-            
-            elem.isFocal_ = code;
-        end % of set_isFocal
             
         function descr = describe(elem)
             % elem = describe(elem)
