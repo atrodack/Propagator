@@ -55,12 +55,12 @@ OS.toggle_verbose('off');
 
 % Make the properties cell array
 props = cell(6,1);
-props{1} = 'System Pupil';      % string of your choosing for name of object
-props{2} = 0;                   % code for material
-props{3} = true;                % amplitude only flag
-props{4} = 0;                   % z position
-props{5} = D;                   % Physical Diameter [m]
-props{6} = 'pup_1024.fits';     % mask [matrix or /path/filename.fits]
+props{1} = 'System Pupil';          % string of your choosing for name of object
+props{2} = 0;                       % code for material
+props{3} = true;                    % amplitude only flag
+props{4} = 0;                       % z position
+props{5} = D;                       % Physical Diameter [m]
+props{6} = 'circ_pup1024.fits';     % mask [matrix or /path/filename.fits]
 
 % Construct
 PUPIL = OptPupil(props);
