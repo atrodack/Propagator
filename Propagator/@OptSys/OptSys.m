@@ -27,6 +27,7 @@ classdef OptSys < matlab.mixin.Copyable
         gridsize_; %
         lambda0_; % central wavelength
         lambda_array_; % vector of lambdas to use
+        lambda_scales_; % vector of scales for wavelengths
         
         % List of Elements
         ELEMENTS_; % cell array of element cards
@@ -246,6 +247,14 @@ classdef OptSys < matlab.mixin.Copyable
                 
             end
         end % of setCentralWavelength
+        
+        function OS = setWavelengthScales(OS)
+            % OS = setWavelengthScales(OS)
+            
+            tmp = OS.pscale_ / OS.lambda0_;
+            OS.lambda_scales_ = tmp * OS.lambda_array_;
+            
+        end % of setWavelengthScales
         
         function OS = setField(OS,field)
             % OS = setField(OS,field)
@@ -513,6 +522,11 @@ classdef OptSys < matlab.mixin.Copyable
                 end
             end
             
+            % Check that lambda_scales is set
+            if isempty(OS.lambda_scales_) == 1
+                OS.setWavelengthScales;
+            end
+            
             % Check Element Gridsizes
             elements = OS.ELEMENTS_;
             numelems = ending_elem - starting_elem + 1;
@@ -654,7 +668,29 @@ classdef OptSys < matlab.mixin.Copyable
         end % of computePropdists
         
         
-
+        function OS = elementCubify(OS)
+            % OS = elementCubify(OS)
+            D = OS.beam_radius_ * OS.pscale_;
+            beamrads = D ./ OS.lambda_scales_;
+            pixdiff = beamrads - OS.beam_radius_;
+            
+            sz = size(OS.WF_);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
+            
+            center = [ceil(sz(1)/2), ceil(sz(2)/2)];
+            
+            tmp = zeros(sz(1), sz(2), sz(3));
+            pupil = OS.ELEMENTS_{1}.zsag_;
+            for ii = 1:sz(3)
+                
+            end
+            
+            
+            
+            
+        end % of elementCubify
         
         function PSF = computePSF(OS,WFin)
             % OS = computePSF(OS,WFin,z)
@@ -684,6 +720,10 @@ classdef OptSys < matlab.mixin.Copyable
             % [xx,yy] = PPcoords(OS)
             
             sz = size(OS.WF_);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
+            
             lambda = OS.lambda_array_;
             
             xx = zeros(sz(2),1,sz(3));
@@ -698,6 +738,9 @@ classdef OptSys < matlab.mixin.Copyable
         function [thx,thy,dth] = FPcoords(OS)
             % [xx,yy] = FPcoords(OS)
             sz = size(OS.WF_);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
             lambda = OS.lambda_array_;
             k = (2*pi) ./ lambda;
             
@@ -887,7 +930,9 @@ classdef OptSys < matlab.mixin.Copyable
 %                             imagesc(xx(:,:,jj),yy(:,:,jj),PSFa0(:,:,jj));
 %                             imagesc(xx(:,:,jj),yy(:,:,jj),log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,jj)))),[-5,0]);
 %                             imagesc(PSFa0(:,:,jj));
-                            imagesc(log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,floor(length(OS.lambda_array_)/2))))),[-6,0]);
+%                             imagesc(log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,floor(length(OS.lambda_array_)/2))))),[-6,0]);
+                            imagesc(log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,jj)))),[-6,0]);
+
                             plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)),'\lambda / D','\lambda / D');
                             drawnow;
                         end
@@ -910,6 +955,11 @@ classdef OptSys < matlab.mixin.Copyable
                 
                 
             end % of loop over elements
+            
+            if isa((OS.WF_),'gpuArray')
+                OS.GPU2CPU;
+%                 OS.resetGPU;
+            end
             
             
         end % of PropagateSystem1
@@ -1334,7 +1384,23 @@ classdef OptSys < matlab.mixin.Copyable
                 
         end % of GPUify
         
-        
+        function OS = GPU2CPU(OS)
+            % OS = GPU2CPU(OS)
+            % Gather any gpuArrays back to the CPU
+            % Get the number of Elements
+            numElems = OS.numElements_;
+            
+            % Send field to gpu
+            OS.setField(gather(OS.WF_));
+            OS.PSF_ = gather(OS.PSF_);
+            
+            for ii = 1:numElems
+                % Send zsag_ to the active gpu
+                OS.ELEMENTS_{ii}.set_zsag(gather(OS.ELEMENTS_{ii}.zsag_));
+            end
+            
+        end % of GPU2CPU
+            
         function mem = GPUavailableMem(OS)
             % mem = GPUavailableMem(OS)
             % Returns the available memory on the active GPU
@@ -1357,6 +1423,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             % Send field to gpu
             OS.setField(gather(OS.WF_));
+            OS.PSF_ = gather(OS.PSF_);
             
             for ii = 1:numElems
                 % Send zsag_ to the active gpu
