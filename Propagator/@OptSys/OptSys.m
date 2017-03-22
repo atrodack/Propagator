@@ -447,8 +447,8 @@ classdef OptSys < matlab.mixin.Copyable
                 end
                 for ii = 1:numLambdas
                     normalizer = max(max(OS.WF_));
-%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WF_(:,:,ii))
-                    imagesc(OS.WF_(:,:,ii));
+                    imagesc(xx(:,:,ii),yy(:,:,ii),OS.WF_(:,:,ii))
+%                     imagesc(OS.WF_(:,:,ii));
                     plotUtils(sprintf('WF\n lambda %d',ii),'\lambda / D', '\lambda / D');
                     drawnow;
                 end
@@ -459,15 +459,15 @@ classdef OptSys < matlab.mixin.Copyable
                     figure(fignum);
                 end
                 for ii = 1:numLambdas
-                    normalizer = max(max(OS.WF_));
-                    subplot(1,2,1)
-%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFamp(:,:,ii));
-                    imagesc(OS.WFamp(:,:,ii));
+                    normalizer = max(max(OS.WFamp));
+%                     subplot(1,2,1)
+                    imagesc(xx(:,:,ii),yy(:,:,ii),log10(OS.WFamp(:,:,ii)/normalizer(ii)),[-6,0]);
+%                     imagesc(OS.WFamp(:,:,ii));
                     plotUtils(sprintf('WF Amplitude\n lambda %g',OS.lambda_array_(ii)),'\lambda / D', '\lambda / D');
-                    subplot(1,2,2)
+%                     subplot(1,2,2)
 %                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFphase(:,:,ii));
-                    imagesc(OS.WFphase(:,:,ii));
-                    plotUtils(sprintf('WF Phase\n lambda %g',OS.lambda_array_(ii)),'\lambda / D', '\lambda / D');
+% %                     imagesc(OS.WFphase(:,:,ii));
+%                     plotUtils(sprintf('WF Phase\n lambda %g',OS.lambda_array_(ii)),'\lambda / D', '\lambda / D');
                     drawnow;
                 end
                 
@@ -747,11 +747,12 @@ classdef OptSys < matlab.mixin.Copyable
             thx = zeros(sz(2),1,sz(3));
             thy = thx;
             
-            dk = 2*pi / (OS.pscale_ * sz(1));
-            dth = dk ./ k;
+            dk = 1*pi / (OS.pscale_ * sz(1));
+            dth = dk ./ k;            
+            
             for jj = 1:length(lambda)
-                thx(:,:,jj) = ((-((sz(2))/2):((sz(2))/2)-1)*(dk))/k(jj)*206265;
-                thy(:,:,jj) = ((-((sz(1))/2):((sz(1))/2)-1)*(dk))/k(jj)*206265;
+                thx(:,:,jj) = ((-(sz(2)/2)+0.5 : (sz(2)/2)-0.5)*(dk))/k(jj)*206265;
+                thy(:,:,jj) = ((-(sz(1)/2)+0.5 : (sz(1)/2)-0.5)*(dk))/k(jj)*206265;
 %                 thx(:,:,jj) = (lambda(jj)*((-((sz(2)-1)/2):((sz(2)-1)/2))))/((OS.pscale_)*(sz(2)-1));
 %                 thy(:,:,jj) = (lambda(jj)*((-((sz(1)-1)/2):((sz(1)-1)/2))))/((OS.pscale_)*(sz(1)-1));
             end
@@ -923,7 +924,7 @@ classdef OptSys < matlab.mixin.Copyable
                     elseif OS.ELEMENTS_{ii}.propagation_method_ == 1
                         fprintf('Computing Focused Field using FFT of WF00%d\n',ii-1);
                         PSFa0 = OS.computePSF(OS.WF_);
-                        [xx,yy,dTH] = OS.FPcoords;
+                        [thx,thy,dTH] = OS.FPcoords;
                         
                         figure;
                         for jj = 1:length(OS.lambda_array_)
@@ -931,9 +932,11 @@ classdef OptSys < matlab.mixin.Copyable
 %                             imagesc(xx(:,:,jj),yy(:,:,jj),log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,jj)))),[-5,0]);
 %                             imagesc(PSFa0(:,:,jj));
 %                             imagesc(log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,floor(length(OS.lambda_array_)/2))))),[-6,0]);
-                            imagesc(log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,jj)))),[-6,0]);
+%                             imagesc(log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,jj)))),[-6,0]);
+                            imagesc(thx(:,:,jj),thy(:,:,jj),log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,jj)))),[-6,0]);
 
-                            plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)),'\lambda / D','\lambda / D');
+
+                            plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)),'\lambda / D [arcseconds]','\lambda / D [arcseconds]');
                             drawnow;
                         end
                         
