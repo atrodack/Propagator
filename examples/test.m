@@ -36,7 +36,7 @@ OS.setCentralWavelength(lambda_0);
 OS.setLambdaarray(lambda);
 
 % Set the beam radius
-OS.setBeamrad(100);
+OS.setBeamrad(200);
 
 % Set the pixel scale
 OS.setPscale(0.00011);

@@ -34,11 +34,12 @@ OS.name = 'PIAACMC Optical System';
 OS.setCentralWavelength(lambda_0);
 OS.setLambdaarray(lambda);
 
-% Set the beam radius
-OS.setBeamrad(100);
+% Set the beam radius (in pixels)
+OS.setBeamrad(200);
 
 % Set the pixel scale
 OS.setPscale(0.00011);
+OS.setWavelengthScales;
 
 % Set the f-number
 OS.setFnum(80);
@@ -94,7 +95,7 @@ OS.toggle_verbose('on');
 % 
 % % Propagate
 % tic;
-% OS.PropagateSystem1(1,6,n0);
+% OS.PropagateSystem1(1,2,n0);
 % toc
 
 %% Do it again on the GPU
