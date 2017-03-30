@@ -406,8 +406,8 @@ classdef OptSys < matlab.mixin.Copyable
                     figure(fignum);
                 end
                 for ii = 1:numLambdas
-%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WF_(:,:,ii))
-                    imagesc(OS.WF_(:,:,ii));
+                    imagesc(xx(:,:,ii),yy(:,:,ii),OS.WF_(:,:,ii))
+%                     imagesc(OS.WF_(:,:,ii));
                     plotUtils(sprintf('WF\n lambda %g',OS.lambda_array_(ii)),'\lambda','\lambda');
                     drawnow;
                 end
@@ -419,12 +419,12 @@ classdef OptSys < matlab.mixin.Copyable
                 end
                 for ii = 1:numLambdas
                     subplot(1,2,1)
-%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFamp(:,:,ii));
-                    imagesc(OS.WFamp(:,:,ii));
+                    imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFamp(:,:,ii));
+%                     imagesc(OS.WFamp(:,:,ii));
                     plotUtils(sprintf('WF Amplitude\n lambda %d',ii),'\lambda','\lambda');
                     subplot(1,2,2)
-%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFphase(:,:,ii));
-                    imagesc(OS.WFphase(:,:,ii));
+                    imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFphase(:,:,ii));
+%                     imagesc(OS.WFphase(:,:,ii));
                     plotUtils(sprintf('WF Phase\n lambda %d',ii),'\lambda','\lambda');
                     drawnow;
                 end
@@ -668,32 +668,9 @@ classdef OptSys < matlab.mixin.Copyable
         end % of computePropdists
         
         
-        function OS = elementCubify(OS)
-            % OS = elementCubify(OS)
-            D = OS.beam_radius_ * OS.pscale_;
-            beamrads = D ./ OS.lambda_scales_;
-            pixdiff = beamrads - OS.beam_radius_;
-            
-            sz = size(OS.WF_);
-            if length(sz) == 2
-                sz(3) = 1;
-            end
-            
-            center = [ceil(sz(1)/2), ceil(sz(2)/2)];
-            
-            tmp = zeros(sz(1), sz(2), sz(3));
-            pupil = OS.ELEMENTS_{1}.zsag_;
-            for ii = 1:sz(3)
-                
-            end
-            
-            
-            
-            
-        end % of elementCubify
         
-        function PSF = computePSF(OS,WFin)
-            % OS = computePSF(OS,WFin,z)
+        function PSF = computePSF_FFT(OS,WFin)
+            % OS = computePSF_FFT(OS,WFin,z)
             
             if nargin < 2
                 WFin = OS.WF_;
@@ -714,7 +691,95 @@ classdef OptSys < matlab.mixin.Copyable
             OS.PSF_ = PSF;
 
 
-        end % computePSF
+        end % computePSF_FFT
+        
+        function output = initchirpzDFT(OS,ind)
+            % output = initchirpzDFT(OS)
+            
+            if isa(OS.ELEMENTS_{ind},'OptDetector')
+                nld = OS.ELEMENTS_{ind}.FPregion_;
+                M = OS.ELEMENTS_{ind}.M_;
+            else
+                nld = 20;
+                M = size(OS.WF_,1);
+            end
+            
+            D = 2*OS.beam_radius_ * OS.pscale_;
+            lambda = OS.lambda_array_;
+            ld = OS.lambda0_ / D;
+            
+            N = size(OS.WF_,1);
+            dx = OS.pscale_;
+            x_extent = N*dx;
+            
+            theta = nld.*ld;
+            xi = theta ./ lambda;
+            df = N / (M*x_extent);
+            q = (df*M) / 2 ./ xi;
+            
+            f0 = zeros(1,length(lambda));
+            for ii = 1:length(f0)
+                f0(ii) = (df*M) - ((df/q(ii)) * M / 2);
+            end
+            
+            output{1} = nld;
+            output{2} = N;
+            output{3} = dx;
+            output{4} = f0;
+            output{5} = df./q;
+            output{6} = M;
+            
+        end % initchirpzDFT
+        
+        function PSF = computePSF_chirpzDFT(OS,WFin,ind)
+            % PSF = computePSF_chirpzDFT(OS,WFin)
+            
+            sz = size(WFin);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
+            
+            if isa(WFin,'gpuArray')
+                flag = true;
+                tmp = gather(WFin);
+                datatype = class(tmp);
+                clear tmp;
+            else
+                datatype = class(WFin);
+                flag = false;
+            end
+            
+            if strcmp(datatype,'single')
+                WFfocus = single(zeros(sz(1),sz(2),sz(3)));
+                if flag
+                    WFfocus = gpuArray(WFfocus);
+                end
+            elseif strcmp(datatype,'double')
+                WFfocus = double(zeros(sz(1),sz(2),sz(3)));
+            elseif strcmp(datatype,'uint8')
+                WFfocus = uint8(zeros(sz(1),sz(2),sz(3)));
+            else
+                error('Unsupported data type');
+            end
+            
+            
+            params = OS.initchirpzDFT(ind);
+            for ii = 1:sz(3)
+                WFfocus(:,:,ii) = OptSys.chirp_zDFT2(WFin(:,:,ii), 0, params{3},params{4}(ii),params{5}(ii),params{6})*(params{2} * params{2} * OS.pscale_ * OS.pscale_);
+            end
+            WFreal = real(WFfocus);
+            WFimag = imag(WFfocus);
+            [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
+            OS.AmpPhase2WF();
+            PSF = abs(OS.WF_).^2;
+            OS.PSF_ = PSF;
+            
+            
+            
+            
+        end % of computePSF_chirpzDFT
+        
+        
         
         function [xx,yy] = PPcoords(OS)
             % [xx,yy] = PPcoords(OS)
@@ -730,32 +795,41 @@ classdef OptSys < matlab.mixin.Copyable
             yy = xx;
             
             for jj = 1:length(lambda)
-                xx(:,:,jj) = (1/lambda(jj))*(-((sz(2)/2)):((sz(2))/2 -1))*(OS.pscale_);
-                yy(:,:,jj) = (1/lambda(jj))*(-((sz(1)/2)):((sz(1))/2 -1))*(OS.pscale_);
+                xx(:,:,jj) = (-((sz(2)/2)):((sz(2))/2 -1))*(OS.pscale_);
+                yy(:,:,jj) = (-((sz(1)/2)):((sz(1))/2 -1))*(OS.pscale_);
             end
         end % of PPcoords
         
-        function [thx,thy,dth] = FPcoords(OS)
+        function [ldx,ldy,fx,fy] = FPcoords(OS,nld,N)
             % [xx,yy] = FPcoords(OS)
+            % call after computing field in Focal Plane
+            
             sz = size(OS.WF_);
             if length(sz) == 2
                 sz(3) = 1;
             end
             lambda = OS.lambda_array_;
-            k = (2*pi) ./ lambda;
             
-            thx = zeros(sz(2),1,sz(3));
-            thy = thx;
+            D = 2*OS.beam_radius_ * OS.pscale_;
+            ld = lambda ./ D;
+            theta = nld.*ld;
+            xi = theta ./ lambda;
+            x_extent = N*OS.pscale_;
+            df = N / (sz(1)*x_extent);
+            q = (df*sz(1)) / 2 ./ xi;
             
-            dk = 1*pi / (OS.pscale_ * sz(1));
-            dth = dk ./ k;            
-            
-            for jj = 1:length(lambda)
-                thx(:,:,jj) = ((-(sz(2)/2)+0.5 : (sz(2)/2)-0.5)*(dk))/k(jj)*206265;
-                thy(:,:,jj) = ((-(sz(1)/2)+0.5 : (sz(1)/2)-0.5)*(dk))/k(jj)*206265;
-%                 thx(:,:,jj) = (lambda(jj)*((-((sz(2)-1)/2):((sz(2)-1)/2))))/((OS.pscale_)*(sz(2)-1));
-%                 thy(:,:,jj) = (lambda(jj)*((-((sz(1)-1)/2):((sz(1)-1)/2))))/((OS.pscale_)*(sz(1)-1));
+            fx = zeros(1,sz(1),sz(3));
+            fy = fx;
+            ldx = fx;
+            ldy = fx;
+           
+            for ii = 1:length(lambda)
+                fx(1,:,ii) = (-floor(sz(1)/2)+0.5:floor(sz(1)/2)-0.5) * (df/q(ii));
+                fy(1,:,ii) = fx(1,:,ii);
+                ldx(1,:,ii) = fx(1,:,ii) * D;
+                ldy(1,:,ii) = fy(1,:,ii) * D;
             end
+            
         end % of FPcoords
         
         %% System Propagation Methods
@@ -922,9 +996,18 @@ classdef OptSys < matlab.mixin.Copyable
                         end
                         
                     elseif OS.ELEMENTS_{ii}.propagation_method_ == 1
-                        fprintf('Computing Focused Field using FFT of WF00%d\n',ii-1);
-                        PSFa0 = OS.computePSF(OS.WF_);
-                        [thx,thy,dTH] = OS.FPcoords;
+%                         fprintf('Computing Focused Field using FFT of WF00%d\n',ii-1);
+%                         PSFa0 = OS.computePSF_FFT(OS.WF_);
+%                         [thx,thy] = OS.FPcoords;
+                        fprintf('Computing Focused Field using Chirp-Z Transform of WF00%d\n',ii-1);
+                        if isa(OS.ELEMENTS_{ii},'OptDetector')
+                            nld = OS.ELEMENTS_{ii}.FPregion_;
+                        else
+                            nld = 20;
+                        end
+                        PSFa0 = computePSF_chirpzDFT(OS,OS.WF_,ii);
+                        [thx,thy] = OS.FPcoords(nld,length(PSFa0));
+
                         
                         figure;
                         for jj = 1:length(OS.lambda_array_)
@@ -936,7 +1019,7 @@ classdef OptSys < matlab.mixin.Copyable
                             imagesc(thx(:,:,jj),thy(:,:,jj),log10(PSFa0(:,:,jj) / max(max(PSFa0(:,:,jj)))),[-6,0]);
 
 
-                            plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)),'\lambda / D [arcseconds]','\lambda / D [arcseconds]');
+                            plotUtils(sprintf('PSFa0,\n lambda = %g',OS.lambda_array_(jj)),'\lambda / D ','\lambda / D ');
                             drawnow;
                         end
                         
@@ -1489,7 +1572,8 @@ classdef OptSys < matlab.mixin.Copyable
                 sz(3) = 1;
             end
             
-            shift = linspace(0,pi,sz(2));
+            shift = linspace(0,pi,sz(2)+1);
+            shift = shift(1:end-1);
             [SX,SY] = meshgrid(shift);
             
             if direction == 1
@@ -1561,7 +1645,73 @@ classdef OptSys < matlab.mixin.Copyable
             
         end
 
+        function output = chirp_zDFT2(input,x0,dx,f0,df,M)
+            
+            sz = size(input);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
+            
+            N = numel(input(1,:));
+            P = 2^ceil(log2(M+N-1));
+            
+            a = exp(-1i*2*pi*((1:N)*dx*(f0-df)+dx*df*(1:N).^2/2));
+            b = exp(-1i*2*pi*((x0-dx)*(f0+(0:M-1)*df)+dx*df*(1:M).^2/2));
+            
+            if isa(input,'gpuArray')
+                flag = true;
+                tmp = gather(input);
+                datatype = class(tmp);
+                clear tmp;
+            else
+                datatype = class(input);
+                flag = false;
+            end
+            
+            if strcmp(datatype,'single')
+                X1 = single(zeros(sz(1),sz(2),sz(3)));
+                output = X1;
+                phi = single(fft(exp(1i*2*pi*dx*df*(1-N:M-1).^2/2),P));
+                if flag
+                    X1 = gpuArray(X1);
+                    output = gpuArray(X1);
+                    phi = gpuArray(phi);
+                end
+            elseif strcmp(datatype,'double')
+                X1 = double(zeros(sz(1),sz(2),sz(3)));
+                output = X1;
+                phi = double(fft(exp(1i*2*pi*dx*df*(1-N:M-1).^2/2),P));
+            elseif strcmp(datatype,'uint8')
+                X1 = uint8(zeros(sz(1),sz(2),sz(3)));
+                output = X1;
+                phi = uint8(fft(exp(1i*2*pi*dx*df*(1-N:M-1).^2/2),P));
+            else
+                error('Unsupported data type');
+            end
+            
+                
+            for ii = 1:sz(1)
+                tmp = input(ii,:);
+                tmpX = ifft( fft(tmp.*a,P) .* phi );
+                tmpX = tmpX(N:M+N-1) .* b;
+                X1(ii,:) = tmpX;
+            end
+            
+            % Permute
+            X1 = X1.';
+            
+            % Do second dimmension
+            
+            for ii = 1:size(X1,1)
+                tmp = X1(ii,:);
+                tmpX = ifft( fft(tmp.*a,P) .* phi );
+                
+                tmpX = tmpX(N:M+N-1) .* b;
+                output(ii,:) = tmpX;
+            end
+
         
+        end % of chirp_zDFT2
         
         % Put here so it can be used without needing the class object
         function WFout = FresnelPropagateWF(WFin, propdist, pscale, lambda)
@@ -1609,7 +1759,7 @@ classdef OptSys < matlab.mixin.Copyable
         end % of FresnelPropagateWF
         
         function WFout = FraunhoferPropWF(WFin, propdist, pscale, lambda)
-            % OS = computePSF(OS,WFin,z)
+            % OS = FraunhoferPropWF(OS,WFin, propdist, pscale, lambda)
 
             sz = size(WFin);
             if length(sz) == 2
