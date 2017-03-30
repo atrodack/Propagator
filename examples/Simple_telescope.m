@@ -10,7 +10,7 @@ clear all; clc; close all;
 lambda_0 = 565*1e-9;
 
 % Define a bandwidth
-bandwidth = 0.1;
+bandwidth = 0.3;
 lambda = linspace(lambda_0 - (lambda_0*(bandwidth/2)),lambda_0 + (lambda_0*(bandwidth/2)),10);
 
 % Define index of refraction of medium Optical System is in
@@ -28,7 +28,7 @@ ld = lambda_0 / D;
 OS = OptSys();
 
 % set the name
-OS.name = 'PIAACMC Optical System';
+OS.name = 'Telescope Optical System';
 
 % set the wavelength info
 OS.setCentralWavelength(lambda_0);
@@ -72,6 +72,8 @@ props = cell(3,1);
 props{1} = 'Detector';          % string of your choosing for name of object
 props{2} = D;                   % diameter
 props{3} = ones(1024);          % zsag
+props{4} = 10;                  % nld
+props{5} = 1024;                % M
 DET = OptDetector(props);
 
 %% Build the Optical System
@@ -89,21 +91,37 @@ OS.toggle_verbose('on');
 
 %% Propagate through the Optical System
 
-% % Set the input field
-% OS.planewave(single(1),length(OS.lambda_array_));
-% % OS.show;
-% 
-% % Propagate
-% tic;
-% OS.PropagateSystem1(1,2,n0);
-% toc
+% Set the input field
+OS.planewave(single(1),length(OS.lambda_array_));
+% OS.show;
+
+% Propagate
+tic;
+OS.PropagateSystem1(1,2,n0);
+toc
+
+combined_exposure = 0;
+for ii = 1:length(lambda)
+    combined_exposure = combined_exposure + OS.PSF_(:,:,ii);
+end
+combined_exposure = combined_exposure / length(lambda);
+
+[ldx,ldy] = OS.FPcoords(DET.FPregion_,1024);
+figure;
+imagesc(ldx(:,:,5),ldy(:,:,5),log10(combined_exposure / max(max(combined_exposure))),[-6,0])
+axis xy; axis square;
+colorbar;
+colormap(gray(256));
+xlabel('\lambda / D');
+ylabel('\lambda / D');
+title('Full bandwidth PSF');
 
 %% Do it again on the GPU
 
-% Set the input field
-OS.planewave(single(1),length(OS.lambda_array_));
-
-tic;
-OS.GPUify;
-OS.PropagateSystem1(1,2,n0);
-toc
+% % Set the input field
+% OS.planewave(single(1),length(OS.lambda_array_));
+% 
+% tic;
+% OS.GPUify;
+% OS.PropagateSystem1(1,2,n0);
+% toc
