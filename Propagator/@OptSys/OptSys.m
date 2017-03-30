@@ -734,6 +734,8 @@ classdef OptSys < matlab.mixin.Copyable
         function PSF = computePSF_chirpzDFT(OS,WFin,ind)
             % PSF = computePSF_chirpzDFT(OS,WFin)
             
+            params = OS.initchirpzDFT(ind);
+            
             sz = size(WFin);
             if length(sz) == 2
                 sz(3) = 1;
@@ -750,26 +752,28 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
             if strcmp(datatype,'single')
-                WFfocus = single(zeros(sz(1),sz(2),sz(3)));
+                WFfocus = single(zeros(params{6},params{6},sz(3)));
                 if flag
                     WFfocus = gpuArray(WFfocus);
                 end
             elseif strcmp(datatype,'double')
-                WFfocus = double(zeros(sz(1),sz(2),sz(3)));
+                WFfocus = double(zeros(params{6},params{6},sz(3)));
             elseif strcmp(datatype,'uint8')
-                WFfocus = uint8(zeros(sz(1),sz(2),sz(3)));
+                WFfocus = uint8(zeros(params{6},params{6},sz(3)));
             else
                 error('Unsupported data type');
             end
             
-            
-            params = OS.initchirpzDFT(ind);
             for ii = 1:sz(3)
                 WFfocus(:,:,ii) = OptSys.chirp_zDFT2(WFin(:,:,ii), 0, params{3},params{4}(ii),params{5}(ii),params{6})*(params{2} * params{2} * OS.pscale_ * OS.pscale_);
             end
             WFreal = real(WFfocus);
             WFimag = imag(WFfocus);
             [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
+            if params{3} ~= params{6}
+                OS.setField(zeros(params{6},params{6},size(WFin,3)));
+                OS.setdatatype(OS.default_data_type);
+            end
             OS.AmpPhase2WF();
             PSF = abs(OS.WF_).^2;
             OS.PSF_ = PSF;
@@ -1669,21 +1673,21 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
             if strcmp(datatype,'single')
-                X1 = single(zeros(sz(1),sz(2),sz(3)));
-                output = X1;
+                X1 = single(zeros(N,M,sz(3)));
+                output = single(zeros(M,M,sz(3)));
                 phi = single(fft(exp(1i*2*pi*dx*df*(1-N:M-1).^2/2),P));
                 if flag
                     X1 = gpuArray(X1);
-                    output = gpuArray(X1);
+                    output = gpuArray(output);
                     phi = gpuArray(phi);
                 end
             elseif strcmp(datatype,'double')
                 X1 = double(zeros(sz(1),sz(2),sz(3)));
-                output = X1;
+                output = double(zeros(M,M,sz(3)));
                 phi = double(fft(exp(1i*2*pi*dx*df*(1-N:M-1).^2/2),P));
             elseif strcmp(datatype,'uint8')
                 X1 = uint8(zeros(sz(1),sz(2),sz(3)));
-                output = X1;
+                output = uint8(zeros(M,M,sz(3)));
                 phi = uint8(fft(exp(1i*2*pi*dx*df*(1-N:M-1).^2/2),P));
             else
                 error('Unsupported data type');
