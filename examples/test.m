@@ -131,10 +131,12 @@ LYOT = OptLyot(props);
 % LYOT.show;
 
 %% Make an OptDetector Object
-props = cell(3,1);
+props = cell(5,1);
 props{1} = 'Detector';          % string of your choosing for name of object
 props{2} = D;                   % diameter
 props{3} = ones(1024);          % zsag
+props{4} = 10;                  % nld
+props{5} = 1024;                % M
 DET = OptDetector(props);
 
 
@@ -166,12 +168,28 @@ tic;
 OS.PropagateSystem1(1,6,n0);
 toc
 
+combined_exposure = 0;
+for ii = 1:length(lambda)
+    combined_exposure = combined_exposure + OS.PSF_(:,:,ii);
+end
+combined_exposure = combined_exposure / length(lambda);
+
+[ldx,ldy] = OS.FPcoords(DET.FPregion_,1024);
+figure;
+imagesc(ldx(:,:,5),ldy(:,:,5),log10(combined_exposure / max(max(combined_exposure))),[-6,0])
+axis xy; axis square;
+colorbar;
+colormap(gray(256));
+xlabel('\lambda / D');
+ylabel('\lambda / D');
+title('Full bandwidth PSF');
+    
 %% Do it again on the GPU
 
-% Set the input field
-OS.planewave(single(1),length(OS.lambda_array_));
-
-tic;
-OS.GPUify;
-OS.PropagateSystem1(1,6,n0);
-toc
+% % Set the input field
+% OS.planewave(single(1),length(OS.lambda_array_));
+% 
+% tic;
+% OS.GPUify;
+% OS.PropagateSystem1(1,6,n0);
+% toc
