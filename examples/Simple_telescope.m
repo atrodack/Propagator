@@ -11,7 +11,7 @@ lambda_0 = 565*1e-9;
 
 % Define a bandwidth
 bandwidth = 0.2;
-lambda = linspace(lambda_0 - (lambda_0*(bandwidth/2)),lambda_0 + (lambda_0*(bandwidth/2)),100);
+lambda = linspace(lambda_0 - (lambda_0*(bandwidth/2)),lambda_0 + (lambda_0*(bandwidth/2)),10);
 
 % Define index of refraction of medium Optical System is in
 n0 = 1;
@@ -76,7 +76,7 @@ props{1} = 'Detector';          % string of your choosing for name of object
 props{2} = D;                   % diameter
 props{3} = ones(1024);          % zsag
 props{4} = 20;                  % nld
-props{5} = 2048;                % M
+props{5} = 0.05;                % detector pixel size in fractions of lambda/D
 DET = OptDetector(props);
 
 %% Build the Optical System
@@ -103,41 +103,41 @@ tic;
 OS.PropagateSystem1(1,2,n0);
 toc
 
-combined_exposure = 0;
-for ii = 1:length(lambda)
-    combined_exposure = combined_exposure + OS.PSF_(:,:,ii);
-end
-combined_exposure = combined_exposure / length(lambda);
-
-[ldx,ldy] = OS.FPcoords(DET.FPregion_,1024);
-
-
-
-figure(2);
-imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(OS.PSF_(:,:,length(lambda)/2) / max(max(OS.PSF_(:,:,length(lambda)/2)))),[-4,0])
-axis xy; axis square;
-colorbar;
-colormap(gray(256));
-xlabel('\lambda / D');
-ylabel('\lambda / D');
-title('Central \lambda PSF');
-
-figure(3);
-imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(combined_exposure / max(max(combined_exposure))),[-4,0])
-axis xy; axis square;
-colorbar;
-colormap(gray(256));
-xlabel('\lambda / D');
-ylabel('\lambda / D');
-title('Full 20% bandwidth PSF');
+% combined_exposure = 0;
+% for ii = 1:length(lambda)
+%     combined_exposure = combined_exposure + OS.PSF_(:,:,ii);
+% end
+% combined_exposure = combined_exposure / length(lambda);
+% 
+% [ldx,ldy] = OS.FPcoords(DET.FPregion_,1024);
+% 
+% 
+% 
+% figure(2);
+% imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(OS.PSF_(:,:,length(lambda)/2) / max(max(OS.PSF_(:,:,length(lambda)/2)))),[-4,0])
+% axis xy; axis square;
+% colorbar;
+% colormap(gray(256));
+% xlabel('\lambda / D');
+% ylabel('\lambda / D');
+% title('Central \lambda PSF');
+% 
+% figure(3);
+% imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(combined_exposure / max(max(combined_exposure))),[-4,0])
+% axis xy; axis square;
+% colorbar;
+% colormap(gray(256));
+% xlabel('\lambda / D');
+% ylabel('\lambda / D');
+% title('Full 20% bandwidth PSF');
 
 
 %% Do it again on the GPU
 
-% % Set the input field
-% OS.planewave(single(1),length(OS.lambda_array_));
-% 
-% tic;
-% OS.GPUify;
-% OS.PropagateSystem1(1,2,n0);
-% toc
+% Set the input field
+OS.planewave(single(1),length(OS.lambda_array_));
+
+tic;
+OS.GPUify;
+OS.PropagateSystem1(1,2,n0);
+toc

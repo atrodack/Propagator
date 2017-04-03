@@ -12,7 +12,7 @@ lambda_0 = 565*1e-9;
 
 % Define a bandwidth
 bandwidth = 0.1;
-lambda = linspace(lambda_0 - (lambda_0*(bandwidth/2)),lambda_0 + (lambda_0*(bandwidth/2)),10);
+lambda = linspace(lambda_0 - (lambda_0*(bandwidth/2)),lambda_0 + (lambda_0*(bandwidth/2)),25);
 
 % Define index of refraction of medium Optical System is in
 n0 = 1;
@@ -135,8 +135,8 @@ props = cell(5,1);
 props{1} = 'Detector';          % string of your choosing for name of object
 props{2} = D;                   % diameter
 props{3} = ones(1024);          % zsag
-props{4} = 10;                  % nld
-props{5} = 1024;                % M
+props{4} = 20;                  % nld
+props{5} = 0.05;                % detector pixel size in fractions of lambda/D
 DET = OptDetector(props);
 
 
@@ -155,7 +155,7 @@ ELEMENTS{6} = DET;
 OS.addSequentialElements(ELEMENTS);
 
 % Turn verbose back on to plot intermediate Propagator steps
-OS.toggle_verbose('on');
+OS.toggle_verbose('off');
 
 %% Propagate through the Optical System
 
@@ -186,10 +186,10 @@ title('Full bandwidth PSF');
     
 %% Do it again on the GPU
 
-% % Set the input field
-% OS.planewave(single(1),length(OS.lambda_array_));
-% 
-% tic;
-% OS.GPUify;
-% OS.PropagateSystem1(1,6,n0);
-% toc
+% Set the input field
+OS.planewave(single(1),length(OS.lambda_array_));
+
+tic;
+OS.GPUify;
+OS.PropagateSystem1(1,6,n0);
+toc

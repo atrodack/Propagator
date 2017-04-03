@@ -670,7 +670,7 @@ classdef OptSys < matlab.mixin.Copyable
         
         
         function PSF = computePSF_FFT(OS,WFin)
-            % OS = computePSF_FFT(OS,WFin,z)
+            % OS = computePSF_FFT(OS,WFin)
             
             if nargin < 2
                 WFin = OS.WF_;
@@ -696,17 +696,17 @@ classdef OptSys < matlab.mixin.Copyable
         function output = initchirpzDFT(OS,ind)
             % output = initchirpzDFT(OS)
             
+            D = 2*OS.beam_radius_ * OS.pscale_;
+            lambda = OS.lambda_array_;
+            ld = OS.lambda0_ / D;
+            
             if isa(OS.ELEMENTS_{ind},'OptDetector')
                 nld = OS.ELEMENTS_{ind}.FPregion_;
-                M = OS.ELEMENTS_{ind}.M_;
+                M = ceil((2*nld) / OS.ELEMENTS_{ind}.pixel_size_);
             else
                 nld = 20;
                 M = size(OS.WF_,1);
             end
-            
-            D = 2*OS.beam_radius_ * OS.pscale_;
-            lambda = OS.lambda_array_;
-            ld = OS.lambda0_ / D;
             
             N = size(OS.WF_,1);
             dx = OS.pscale_;
@@ -722,12 +722,23 @@ classdef OptSys < matlab.mixin.Copyable
                 f0(ii) = (df*M) - ((df/q(ii)) * M / 2);
             end
             
+            phaseshift = zeros(N,N,length(lambda));
+            for ii = 1:length(lambda)
+                shift = linspace(0,pi/(2*q(ii)),N+1);
+                shift = shift(1:end-1);
+                [SX,SY] = meshgrid(shift);
+                Tip = exp(-1i.*SX);
+                Tilt = exp(-1i.*SY);
+                phaseshift(:,:,ii) = Tip.*Tilt;
+            end
+            
             output{1} = nld;
             output{2} = N;
             output{3} = dx;
             output{4} = f0;
             output{5} = df./q;
             output{6} = M;
+            output{7} = phaseshift;
             
         end % initchirpzDFT
         
@@ -741,11 +752,11 @@ classdef OptSys < matlab.mixin.Copyable
                 sz(3) = 1;
             end
             
+            % Too slow column by column on GPU -- bring this to the CPU
             if isa(WFin,'gpuArray')
-                flag = true;
-                tmp = gather(WFin);
-                datatype = class(tmp);
-                clear tmp;
+                flag = false;
+                WFin = gather(WFin);
+                datatype = class(WFin);
             else
                 datatype = class(WFin);
                 flag = false;
@@ -808,7 +819,7 @@ classdef OptSys < matlab.mixin.Copyable
             % [xx,yy] = FPcoords(OS)
             % call after computing field in Focal Plane
             
-            sz = size(OS.WF_);
+            sz = size(OS.PSF_);
             if length(sz) == 2
                 sz(3) = 1;
             end
@@ -828,7 +839,7 @@ classdef OptSys < matlab.mixin.Copyable
             ldy = fx;
            
             for ii = 1:length(lambda)
-                fx(1,:,ii) = (-floor(sz(1)/2)+0.5:floor(sz(1)/2)-0.5) * (df/q(ii));
+                fx(1,:,ii) = (-floor(sz(1)/2 +0.5):floor(sz(1)/2)-0.5) * (df/q(ii));
                 fy(1,:,ii) = fx(1,:,ii);
                 ldx(1,:,ii) = fx(1,:,ii) * D;
                 ldy(1,:,ii) = fy(1,:,ii) * D;
@@ -1675,25 +1686,27 @@ classdef OptSys < matlab.mixin.Copyable
             if strcmp(datatype,'single')
                 X1 = single(zeros(N,M,sz(3)));
                 output = single(zeros(M,M,sz(3)));
-                phi = single(fft(exp(1i*2*pi*dx*df*(1-N:M-1).^2/2),P));
+                c = single((exp(1i*2*pi*dx*df*(1-N:M-1).^2/2)));
                 if flag
-                    X1 = gpuArray(X1);
-                    output = gpuArray(output);
-                    phi = gpuArray(phi);
+%                     X1 = gpuArray(X1);
+%                     output = gpuArray(output);
+%                     a = gpuArray(a);
+%                     b = gpuArray(b);
+%                     c = gpuArray(c);
                 end
             elseif strcmp(datatype,'double')
                 X1 = double(zeros(sz(1),sz(2),sz(3)));
                 output = double(zeros(M,M,sz(3)));
-                phi = double(fft(exp(1i*2*pi*dx*df*(1-N:M-1).^2/2),P));
+                c = double((exp(1i*2*pi*dx*df*(1-N:M-1).^2/2)));
             elseif strcmp(datatype,'uint8')
                 X1 = uint8(zeros(sz(1),sz(2),sz(3)));
                 output = uint8(zeros(M,M,sz(3)));
-                phi = uint8(fft(exp(1i*2*pi*dx*df*(1-N:M-1).^2/2),P));
+                c = uint8((exp(1i*2*pi*dx*df*(1-N:M-1).^2/2)));
             else
                 error('Unsupported data type');
             end
             
-                
+             phi = fft(c,P);   
             for ii = 1:sz(1)
                 tmp = input(ii,:);
                 tmpX = ifft( fft(tmp.*a,P) .* phi );
