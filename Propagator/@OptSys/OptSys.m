@@ -37,25 +37,29 @@ classdef OptSys < matlab.mixin.Copyable
         % 2) Material (index of refraction)
         % 3) Element Position
         % 4) z-sag in meters
+        % And possibly other pieces of information depending on the element
+        % type
         
         % Wavefront
-        WFamp;
-        WFphase;
-        WF_;
-        PSF_;
+        WFamp;          % The amplitude of the complex wavefront
+        WFphase;        % The phase of the complex wavefront
+        WF_;            % The complex wavefront
+        PSF_;           % Modulus Squared of complex Wavefront in Focal Plane
         
         % GPU properties
-        useGPU = 0; % use a GPU flag
-        nGPUs;
-        DEVICES;
+        useGPU = 0;         % use a GPU flag
+        nGPUs;              % Number of GPUs MATLAB finds
+        DEVICES;            % A list of those GPUs
         
-        % Pool Characteristics
+        % Pool Characteristics (UNUSED)
         nWorkers; % number of workers for parpool
         
         
         % Misc
         interpolate_method = [];
-        default_data_type = 'single';
+        default_data_type = 'single';   % Default to type single for faster calculations
+                                        % Change if higher precision is
+                                        % required
         
         
     end % of protected properties
@@ -82,7 +86,10 @@ classdef OptSys < matlab.mixin.Copyable
         %% Initializer for OptSys
         
         function OS = initOptSys(OS,sz)
-            %OS = initializeOptSys(OS,sz)
+            %OS = initOptSys(OS,sz)
+            % Initialier for the object. Creates cell array in ELEMENTS_ to
+            % store elements, and querys the computer if it has an NVIDIA
+            % GPU. If it finds a GPU, it is initialized as well.
             
             OS.ELEMENTS_ = cell(OS.numElements_,1);
             OS.nGPUs = gpuDeviceCount;
