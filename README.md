@@ -1,27 +1,17 @@
-Optical Propagation code
+<H1>
+Propagator: MATLAB-based Optical System Propagation Simulation.
+</H1>
 
-src code is in Propagator/Propagator
+Most of this code was written by and owned by Alexander T. Rodack and Justin M. Knight, PhD candidates at the University of Arizona.  
 
-test.m in Propagator/examples runs the code
+Zernike functions in Utilities were written and provided by Ruslan Belikov and Jared Males.  
 
-evaluations of run times in /Propagator/Evaluations
+To install, download or clone the Propagator repository. Then add the directory to the MATLAB path.
 
-saved data for index of refraction vs. wavelength for materials in /Propagator/Database
+The code is still under development. More explanation will be added here once the code reaches a good settling point.
 
+Currently supported branch: v0.2.
 
+Alexander T. Rodack<br>
+Tucson, AZ.
 
-Owners:
-
-Alexander T. Rodack
-
-Ph.D Candidate
-
-University of Arizona
-
-
-
-Justin M. Knight
-
-Ph.D Candidate
-
-University of Arizona
