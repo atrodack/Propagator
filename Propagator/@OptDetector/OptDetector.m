@@ -1,6 +1,7 @@
 classdef OptDetector < OptElement
     %OptDetector Class for Detector objects
-    %   Placeholder for the end of a system
+    %   Placeholder for the end of a system no longer with chirp-z
+    %   transform!
     
     properties(GetAccess = 'public', SetAccess = 'protected')
         useNoise_;
@@ -14,8 +15,8 @@ classdef OptDetector < OptElement
     methods
          %% Constructor
         function elem = OptDetector(PROPERTIES)
-            % elem = OptDetector()
-            % PROPERTIES is a 4x1 cell array containing element properties
+            % elem = OptDetector(PROPERTIES)
+            % PROPERTIES is a 7x1 cell array containing element properties
             % If something is unknown or to be set later, leave that
             % position in A empty:
             %
@@ -27,7 +28,7 @@ classdef OptDetector < OptElement
 %           PROPERTIES{6,1} = exposure_time         [float in seconds]
 %           PROPERTIES{7,1} = useNoise              [Boolean]
             
-            if size(PROPERTIES) == [5,1]
+            if size(PROPERTIES) == [7,1]
                 if iscell(PROPERTIES) == 1
                     A = PROPERTIES;
                 else
