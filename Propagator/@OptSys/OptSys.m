@@ -904,6 +904,15 @@ classdef OptSys < matlab.mixin.Copyable
                 sz(3) = 1;
             end
             
+            sz2 = size(PS.screen_);
+            if length(sz2) == 2
+                sz(3) = 1;
+            end
+            
+            if ~isequal(sz(3),sz2(3))
+                error('Must have a phasescreen for each wavelength');
+            end
+            
             WFin = OS.WF_;
             
             if isa(WFin,'gpuArray')
@@ -933,7 +942,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             if isa(PS,'OptPhaseScreen')
                 for ii = 1:sz(3)
-                    Psi = PS.phasor(OS.lambda_array_(ii));
+                    Psi = PS.phasor(OS.lambda_array_,ii);
                     Field(:,:,ii) = (OS.WF_(:,:,ii) .* Psi);
                 end
                 OS.setField(Field);

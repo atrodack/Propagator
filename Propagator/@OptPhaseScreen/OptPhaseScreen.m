@@ -243,8 +243,8 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
                 thickness = elem.thickness_;
             end
                         
-            k = (2*pi) / lambda;
-            elem.Cn2_ = (r0.^(-5/3)) / 0.423 / (k^2) ./ thickness;
+            k = (2*pi) ./ lambda;
+            elem.Cn2_ = (r0.^(-5/3)) / 0.423 ./ (k.^2) ./ thickness;
         end % of compute_Cn2
         
         function elem = compute_r0(elem,Cn2,lambda,thickness)
@@ -272,12 +272,13 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             if nargin < 4
                 thickness = elem.thickness_;
             end
-            k = (2*pi) / lambda;
-            elem.r0_ = (0.423 * (k^2) .* Cn2 .* thickness).^(-3/5);
+            
+            k = (2*pi) ./ lambda;
+            elem.r0_ = (0.423 .* (k.^2) .* Cn2 .* thickness).^(-3/5);
         end % of compute_r0
         
-        function elem = compute_Cn2_2(elem,r0,lambda,thickness,zenith)
-            % elem = compute_Cn2(elem,r0,lambda,thickness)
+        function elem = compute_Cn2_zenith(elem,r0,lambda,thickness,zenith)
+            % elem = compute_Cn2_zenith(elem,r0,lambda,thickness)
             %
             % Assumes zenith angle of 0 degrees, Cn^2 constant over
             % thickness
@@ -302,13 +303,16 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             if nargin < 4
                 thickness = elem.thickness_;
             end
+            if nargin < 5
+                zenith = 0;
+            end
             
-            k = (2*pi) / lambda;
-            elem.Cn2_ = (r0.^(-5/3)) / 0.423 / (k^2) / secd(zenith) ./ thickness;
-        end % of compute_Cn2_2
+            k = (2*pi) ./ lambda;
+            elem.Cn2_ = (r0.^(-5/3)) / 0.423 ./ (k.^2) / secd(zenith) ./ thickness;
+        end % of compute_Cn2_zenith
         
-        function elem = compute_r0_2(elem,Cn2,lambda,thickness,zenith)
-            % elem = compute_r0(elem,Cn2,lambda,thickness)
+        function elem = compute_r0_zenith(elem,Cn2,lambda,thickness,zenith)
+            % elem = compute_r0_zenith(elem,Cn2,lambda,thickness)
             %
             % Assumes zenith angle of 0 degrees, Cn^2 constant over
             % thickness
@@ -333,28 +337,59 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             if nargin < 4
                 thickness = elem.thickness_;
             end
-            k = (2*pi) / lambda;
-            elem.r0_ = (0.423 * (k^2) * secd(zenith) .* Cn2 .* thickness).^(-3/5);
-        end % of compute_r0_2
+            if nargin < 5
+                zenith = 0;
+            end
+            
+            k = (2*pi) ./ lambda;
+            elem.r0_ = (0.423 .* (k.^2) * secd(zenith) .* Cn2 .* thickness).^(-3/5);
+        end % of compute_r0_zenith
+        
+        function r0 = compute_sensorLambdar0(elem, sensor_lambda, zenith)
+            % r0 = compute_sensorLambdar0(elem,sensor_lambda,zenith)
+            %
+            % sensor_lambda must be in meters
+            
+            if nargin < 3
+                zenith = 0;
+            end
+            
+            % convert sensor_lambda to microns
+            sensor_lambda = sensor_lambda * 1e6;
+            ref_lambda = elem.ref_lambda_ * 1e6;
+            r0 = (elem.r0_) .* (sensor_lambda / ref_lambda) .^(6/5) * (cos(zenith)).^(3/5);
+            
+            
+        end % of compute_sensorLambdar0
         
         %% Utilities
-        function Phi = phase(elem,lambda)
-            % Phi = phase(elem,lambda)
+        function Phi = phase(elem,lambda,ind)
+            % Phi = phase(elem,lambda,ind)
             
             if nargin < 2
                 lambda = elem.ref_lambda_;
             end
-            k = (2*pi) / lambda;
-            Phi = k * elem.screen_;
+            if nargin < 3
+                ind = 1;
+            end
+            
+            k = (2*pi) / lambda(ind);
+            
+            
+            Phi = k .* elem.screen_(:,:,ind);
         end % of phase
         
-        function Psi = phasor(elem,lambda)
-            % Psi = phasor(elem, lambda)
+        function Psi = phasor(elem,lambda,ind)
+            % Psi = phasor(elem, lambda,ind)
             
             if nargin < 2
                 lambda = elem.ref_lambda_;
             end
-            Psi = exp(-1i * elem.phase(lambda));
+            if nargin < 3
+                ind = 1;
+            end
+            
+            Psi = exp(-1i * elem.phase(lambda,ind));
         end % of phasor
         
         function Rf = Fresnel_Scale(elem,lambda,h)
@@ -401,7 +436,8 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             
             for ii = 1:sz(3)
                 imagesc(elem.screen_(:,:,ii))
-                plotUtils(sprintf('Displacement for %s',elem.name));
+                plotUtils(sprintf('Displacement for %s, wavelength %d',elem.name,ii));
+                drawnow;
             end
             
         end % of show
@@ -417,10 +453,12 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             
         end % of Kcoords2D
         
+        
+        
         %% Make the screen
         
         function elem = makeScreen(elem,N,KR,dx,fixLF,L0,l0,alpha,thickness,Cn2)
-        % elem = makeScreen(elem,N,KR,dx,L0,l0,alpha,thickness,altitude,Cn2)
+        % elem = makeScreen(elem,N_,KR,dx,L0,l0,alpha,thickness,altitude,Cn2)
         
         if nargin < 2
             N = elem.N_;
@@ -452,43 +490,50 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
         
         K0 = (2*pi) / L0;
         Ki = 5.92 / l0;
-        switch elem.Model_code_
-            case 0 % Kolmogorov
-                PSD = 0.033.*Cn2 .* (KR.^2).^(-alpha/2);
-                
-            case 1 % Kolmogorov + Tatarski
-                PSD = 0.033.*Cn2 .* (KR.^2).^(-alpha/2);
-                PSD = PSD .* exp((-KR.^2) ./ (Ki^2));
-                
-                
-            case 2 % von Karman
-                PSD = 0.033 .* Cn2 .* (K0^2 + KR.^2).^(-alpha/2);
-                PSD = PSD .* exp((-KR.^2) ./ (Ki^2));
+        
+        PSD_ = zeros(N,N,length(Cn2));
+        screen_ = zeros(N,N,length(Cn2));
+            
+        for ii = 1:length(Cn2)
+            switch elem.Model_code_
+                case 0 % Kolmogorov
+                    PSD = 0.033.*Cn2(ii) .* (KR.^2).^(-alpha/2);
+                    
+                case 1 % Kolmogorov + Tatarski
+                    PSD = 0.033.*Cn2(ii) .* (KR.^2).^(-alpha/2);
+                    PSD = PSD .* exp((-KR.^2) ./ (Ki^2));
+                    
+                    
+                case 2 % von Karman
+                    PSD = 0.033 .* Cn2(ii) .* (K0^2 + KR.^2).^(-alpha/2);
+                    PSD = PSD .* exp((-KR.^2) ./ (Ki^2));
+            end
+            PSD(N/2,N/2) = 0;
+            PSD = PSD * thickness * 1.25;
+            
+            rv = elem.complexNormalRV(1,N);
+            grid = rv.* sqrt(PSD);
+            grid_ft = fftshift(fft2(fftshift(grid)));
+            tmp = grid_ft .* 24.6 / dx / N;
+            
+            
+            if(fixLF)
+                Nlf = 8;
+                LFpart = imag(tmp(1:round(N/Nlf*1.1),1:round(N/Nlf*1.1)));
+                LFpart = interp2(LFpart,3);
+                LFpart = LFpart(1:N,1:N); % trim to the size of the screen.
+                scaling = 0.8 * 8^(5/6);
+                screen_(:,:,ii) = real(tmp) + LFpart*scaling;
+                PSD_(:,:,ii) = PSD;
+            else
+                screen_(:,:,ii) = real(tmp);
+                PSD_(:,:,ii) = PSD;
+            end
         end
-        PSD(N/2,N/2) = 0;
-        PSD = PSD * thickness * 1.25;
         
-        rv = elem.complexNormalRV(1,N);
-        grid = rv.* sqrt(PSD);
-        grid_ft = fftshift(fft2(fftshift(grid)));
-        screen = grid_ft .* 24.6 / dx / N;
-        
-        
-        if(fixLF)
-            Nlf = 8;
-            LFpart = imag(screen(1:round(N/Nlf*1.1),1:round(N/Nlf*1.1)));
-            LFpart = interp2(LFpart,3);
-            LFpart = LFpart(1:N,1:N); % trim to the size of the screen.
-            scaling = 0.8 * 8^(5/6);
-            elem.screen_ = real(screen) + LFpart*scaling;
-        else
-            elem.screen_ = real(screen);
-        end
-        
-        
-        elem.PSD_ = PSD;
-        
-        
+        elem.screen_ = screen_;
+        elem.PSD_ = PSD_;
+            
         end % of makeScreen
         
     end % of methods
