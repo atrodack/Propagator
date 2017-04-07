@@ -134,8 +134,9 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
         function elem = set_Modelcode(elem,code)
             % elem = set_Modelcode(elem,code)
             % Tell the Screen what model for the PSD to use
+            % See [Ref 1] for help
             % Valid Code Inputs:
-            % 0: Kolmogorov - Standard 2/3 law [Ref 1]
+            % 0: Kolmogorov - Standard 2/3 law
             % 1: Kolmogorov w/ Tatarski Adjustment for inner scale
             % 2: von Karman Spectrum - finite inner and outer scales
             
@@ -383,6 +384,38 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
                 rng('default');
             end
         end % of complexNormalRV
+        
+        function show(elem,fignum)
+            % show(elem,fignum)
+            % Plots matrix stored in screen_
+            if nargin < 2
+                figure;
+            else
+                figure(fignum);
+            end
+            
+            sz = size(elem.screen_);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
+            
+            for ii = 1:sz(3)
+                imagesc(elem.screen_(:,:,ii))
+                plotUtils(sprintf('Displacement for %s',elem.name));
+            end
+            
+        end % of show
+        
+        function [KX,KY,KR,kx] = Kcoords2D(elem)
+            % [KX,KY,KR,kx] = Kcoords(OS)
+            
+            N = elem.N_;
+            dk = (2*pi) ./ (N*elem.dx_);
+            kx = ((1:N) - (N/2))*dk;
+            [KX,KY] = meshgrid(kx);
+            KR = sqrt(KX.^2 + KY.^2);
+            
+        end % of Kcoords2D
         
         %% Make the screen
         

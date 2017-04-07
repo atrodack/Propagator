@@ -39,7 +39,6 @@ OS.setBeamrad(200);
 
 % Set the pixel scale
 OS.setPscale(0.00011);
-OS.setWavelengthScales;
 
 % Set the f-number
 OS.setFnum(80);
@@ -79,6 +78,23 @@ props{4} = 20;                  % nld
 props{5} = 0.05;                % detector pixel size in fractions of lambda/D
 DET = OptDetector(props);
 
+%% Make a Phase Screen
+[~,~,KR] = OS.Kcoords2D;
+
+PROPERTIES = cell(10,1);
+PROPERTIES{1,1} = 'von Karman-5cm r0';        % string of your choosing for name
+PROPERTIES{2,1} = 0;                    % altitude
+PROPERTIES{3,1} = 100;                  % thickness
+PROPERTIES{4,1} = 0.5e-6;               % reference wavelength
+PROPERTIES{5,1} = [];                   % Cn^2
+PROPERTIES{6,1} = 5e-2;                 % r0
+PROPERTIES{7,1} = 2;                    % Model code [2 = von Karman]
+PROPERTIES{8,1} = KR;                   % 2D Radial K-space coordinate
+PROPERTIES{9,1} = OS.pscale_;           % Pixel spacing
+PROPERTIES{10,1} = OS.gridsize_(1);     % Number of points to make the screen grid [NxN]
+
+PS = OptPhaseScreen(PROPERTIES);
+PS.makeScreen;
 %% Build the Optical System
 
 % Make a list of the made elements
@@ -92,52 +108,90 @@ OS.addSequentialElements(ELEMENTS);
 % Turn verbose back on to plot intermediate Propagator steps
 OS.toggle_verbose('on');
 
-%% Propagate through the Optical System
-
-% Set the input field
-OS.planewave(single(1),length(OS.lambda_array_));
-% OS.show;
-
-% Propagate
-tic;
-OS.PropagateSystem1(1,2,n0);
-toc
-
-% combined_exposure = 0;
-% for ii = 1:length(lambda)
-%     combined_exposure = combined_exposure + OS.PSF_(:,:,ii);
-% end
-% combined_exposure = combined_exposure / length(lambda);
-% 
-% [ldx,ldy] = OS.FPcoords(DET.FPregion_,1024);
-% 
-% 
-% 
-% figure(2);
-% imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(OS.PSF_(:,:,length(lambda)/2) / max(max(OS.PSF_(:,:,length(lambda)/2)))),[-4,0])
-% axis xy; axis square;
-% colorbar;
-% colormap(gray(256));
-% xlabel('\lambda / D');
-% ylabel('\lambda / D');
-% title('Central \lambda PSF');
-% 
-% figure(3);
-% imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(combined_exposure / max(max(combined_exposure))),[-4,0])
-% axis xy; axis square;
-% colorbar;
-% colormap(gray(256));
-% xlabel('\lambda / D');
-% ylabel('\lambda / D');
-% title('Full 20% bandwidth PSF');
-
-
-%% Do it again on the GPU
+%% Propagate through the Atmosphere Layer
 
 % Set the input field
 OS.planewave(single(1),length(OS.lambda_array_));
 
+% Apply to Wavefront going into System
+OS.ApplyPhaseScreen(PS);
+
+
+
+
+%% Propagate
 tic;
-OS.GPUify;
 OS.PropagateSystem1(1,2,n0);
 toc
+
+combined_exposure = 0;
+for ii = 1:length(lambda)
+    combined_exposure = combined_exposure + OS.PSF_(:,:,ii);
+end
+combined_exposure = combined_exposure / length(lambda);
+
+[ldx,ldy] = OS.FPcoords(DET.FPregion_,1024);
+
+
+
+figure(2);
+imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(OS.PSF_(:,:,length(lambda)/2) / max(max(OS.PSF_(:,:,length(lambda)/2)))),[-4,0])
+axis xy; axis square;
+colorbar;
+colormap(gray(256));
+xlabel('\lambda / D');
+ylabel('\lambda / D');
+title('Central \lambda PSF');
+
+figure(3);
+imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(combined_exposure / max(max(combined_exposure))),[-4,0])
+axis xy; axis square;
+colorbar;
+colormap(gray(256));
+xlabel('\lambda / D');
+ylabel('\lambda / D');
+title('Full 20% bandwidth PSF');
+
+
+%% Do it again except with fake AO
+% Simulate an AO System Effect to get residual
+screen = PS.GaussianSmoothing(5e-3,[5,3]);
+PS.set_screen(PS.screen_ - screen);
+
+% Set the input field
+OS.planewave(single(1),length(OS.lambda_array_));
+
+% Apply to Wavefront going into System
+OS.ApplyPhaseScreen(PS);
+
+tic;
+OS.PropagateSystem1(1,2,n0);
+toc
+
+combined_exposure = 0;
+for ii = 1:length(lambda)
+    combined_exposure = combined_exposure + OS.PSF_(:,:,ii);
+end
+combined_exposure = combined_exposure / length(lambda);
+
+[ldx,ldy] = OS.FPcoords(DET.FPregion_,1024);
+
+
+
+figure(4);
+imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(OS.PSF_(:,:,length(lambda)/2) / max(max(OS.PSF_(:,:,length(lambda)/2)))),[-4,0])
+axis xy; axis square;
+colorbar;
+colormap(gray(256));
+xlabel('\lambda / D');
+ylabel('\lambda / D');
+title('Central \lambda PSF');
+
+figure(5);
+imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(combined_exposure / max(max(combined_exposure))),[-4,0])
+axis xy; axis square;
+colorbar;
+colormap(gray(256));
+xlabel('\lambda / D');
+ylabel('\lambda / D');
+title('Full 20% bandwidth PSF');

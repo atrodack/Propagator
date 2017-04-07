@@ -28,14 +28,14 @@ classdef OptDetector < OptElement
 %           PROPERTIES{6,1} = exposure_time         [float in seconds]
 %           PROPERTIES{7,1} = useNoise              [Boolean]
             
-            if size(PROPERTIES) == [7,1]
+            if size(PROPERTIES) == [5,1]
                 if iscell(PROPERTIES) == 1
                     A = PROPERTIES;
                 else
-                    error('PROPERTIES must be 5x1 cell array!');
+                    error('PROPERTIES must be 7x1 cell array!');
                 end
             else
-                error('PROPERTIES must be a 5x1 cell array!');
+                error('PROPERTIES must be a 7x1 cell array!');
             end
             
             elem.set_name(A{1,1});

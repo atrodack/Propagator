@@ -116,7 +116,6 @@ classdef OptSys < matlab.mixin.Copyable
                 if OS.verbose == 1
                     fprintf('Element %s Added to Optical System\n',elem.name);
                 end
-                
             else
                 error('I do not understand anything but OptElement objects');
             end
@@ -139,7 +138,7 @@ classdef OptSys < matlab.mixin.Copyable
             % Adds an Element to the optical system in the location given
             % in order_num
             
-            if isa(elem,'OptElement') == 0
+            if ~isa(elem,'OptElement')
                 error('elem must be type OptElement');
             end
             
@@ -367,7 +366,7 @@ classdef OptSys < matlab.mixin.Copyable
         function show(OS,fignum)
             % show(OS)
             % Plots matrix stored in zsag_
-            numLambdas = size(OS.lambda_array_,2);
+            numLambdas = size(OS.WF_,3);
             
             if isreal(OS.WF_) == 1
                 if nargin < 2
@@ -415,7 +414,7 @@ classdef OptSys < matlab.mixin.Copyable
                 for ii = 1:numLambdas
                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WF_(:,:,ii))
 %                     imagesc(OS.WF_(:,:,ii));
-                    plotUtils(sprintf('WF\n lambda %g',OS.lambda_array_(ii)),'\lambda','\lambda');
+                    plotUtils(sprintf('WF\n lambda %g',OS.lambda_array_(ii)),'x','y');
                     drawnow;
                 end
             else
@@ -428,11 +427,11 @@ classdef OptSys < matlab.mixin.Copyable
                     subplot(1,2,1)
                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFamp(:,:,ii));
 %                     imagesc(OS.WFamp(:,:,ii));
-                    plotUtils(sprintf('WF Amplitude\n lambda %d',ii),'\lambda','\lambda');
+                    plotUtils(sprintf('WF Amplitude\n lambda %d',ii),'x','y');
                     subplot(1,2,2)
                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFphase(:,:,ii));
 %                     imagesc(OS.WFphase(:,:,ii));
-                    plotUtils(sprintf('WF Phase\n lambda %d',ii),'\lambda','\lambda');
+                    plotUtils(sprintf('WF Phase\n lambda %d',ii),'x','y');
                     drawnow;
                 end
                 
@@ -440,47 +439,47 @@ classdef OptSys < matlab.mixin.Copyable
             
         end % of show_PP
         
-        function show_FP(OS,fignum)
-            % show(OS,fignum)
-            numLambdas = size(OS.lambda_array_,2);
-            
-            [xx,yy,dTH] = OS.FPcoords;
-            
-            if isreal(OS.WF_) == 1
-                if nargin < 2
-                    figure;
-                else
-                    figure(fignum);
-                end
-                for ii = 1:numLambdas
-                    normalizer = max(max(OS.WF_));
-                    imagesc(xx(:,:,ii),yy(:,:,ii),OS.WF_(:,:,ii))
-%                     imagesc(OS.WF_(:,:,ii));
-                    plotUtils(sprintf('WF\n lambda %d',ii),'\lambda / D', '\lambda / D');
-                    drawnow;
-                end
-            else
-                if nargin < 2
-                    figure;
-                else
-                    figure(fignum);
-                end
-                for ii = 1:numLambdas
-                    normalizer = max(max(OS.WFamp));
-%                     subplot(1,2,1)
-                    imagesc(xx(:,:,ii),yy(:,:,ii),log10(OS.WFamp(:,:,ii)/normalizer(ii)),[-6,0]);
-%                     imagesc(OS.WFamp(:,:,ii));
-                    plotUtils(sprintf('WF Amplitude\n lambda %g',OS.lambda_array_(ii)),'\lambda / D', '\lambda / D');
-%                     subplot(1,2,2)
-%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFphase(:,:,ii));
-% %                     imagesc(OS.WFphase(:,:,ii));
-%                     plotUtils(sprintf('WF Phase\n lambda %g',OS.lambda_array_(ii)),'\lambda / D', '\lambda / D');
-                    drawnow;
-                end
-                
-            end
-            
-        end % of show_FP
+%         function show_FP(OS,fignum)
+%             % show(OS,fignum)
+%             numLambdas = size(OS.lambda_array_,2);
+%             
+% %             [xx,yy,dTH] = OS.FPcoords;
+%             
+%             if isreal(OS.WF_) == 1
+%                 if nargin < 2
+%                     figure;
+%                 else
+%                     figure(fignum);
+%                 end
+%                 for ii = 1:numLambdas
+%                     normalizer = max(max(OS.WF_));
+%                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WF_(:,:,ii))
+% %                     imagesc(OS.WF_(:,:,ii));
+%                     plotUtils(sprintf('WF\n lambda %d',ii),'\lambda / D', '\lambda / D');
+%                     drawnow;
+%                 end
+%             else
+%                 if nargin < 2
+%                     figure;
+%                 else
+%                     figure(fignum);
+%                 end
+%                 for ii = 1:numLambdas
+%                     normalizer = max(max(OS.WFamp));
+% %                     subplot(1,2,1)
+%                     imagesc(xx(:,:,ii),yy(:,:,ii),log10(OS.WFamp(:,:,ii)/normalizer(ii)),[-6,0]);
+% %                     imagesc(OS.WFamp(:,:,ii));
+%                     plotUtils(sprintf('WF Amplitude\n lambda %g',OS.lambda_array_(ii)),'\lambda / D', '\lambda / D');
+% %                     subplot(1,2,2)
+% %                     imagesc(xx(:,:,ii),yy(:,:,ii),OS.WFphase(:,:,ii));
+% % %                     imagesc(OS.WFphase(:,:,ii));
+% %                     plotUtils(sprintf('WF Phase\n lambda %g',OS.lambda_array_(ii)),'\lambda / D', '\lambda / D');
+%                     drawnow;
+%                 end
+%                 
+%             end
+%             
+%         end % of show_FP
         
         
         %% Propagation Utility Methods
@@ -571,7 +570,7 @@ classdef OptSys < matlab.mixin.Copyable
         
         
         function OS = planewave(OS,amplitude,numLambdas,theta)
-            % OS = planewave(OS,amplitude,theta)
+            % OS = planewave(OS,amplitude,numLambdas,theta)
             % Initializes a planewave as the stored wavefront
             %
             % TO DO: add off-axis planewave functionality
@@ -854,6 +853,17 @@ classdef OptSys < matlab.mixin.Copyable
             
         end % of FPcoords
         
+        function [KX,KY,KR,kx] = Kcoords2D(OS)
+            % [KX,KY,KR,kx] = Kcoords(OS)
+            
+            N = OS.gridsize_(1);
+            dk = (2*pi) ./ (N*OS.pscale_);
+            kx = ((1:N) - (N/2))*dk;
+            [KX,KY] = meshgrid(kx);
+            KR = sqrt(KX.^2 + KY.^2);
+            
+        end % of Kcoords2D
+        
         %% System Propagation Methods
         % See static methods for actual Fresnel propagation method
         
@@ -885,7 +895,56 @@ classdef OptSys < matlab.mixin.Copyable
                 OS.ReIm2WF;
             end
         end % of ApplyElement
+        
+        function OS = ApplyPhaseScreen(OS,PS)
+            % OS = ApplyPhaseScreen(OS,PS)
             
+            sz = size(OS.WF_);
+            if length(sz) == 2
+                sz(3) = 1;
+            end
+            
+            WFin = OS.WF_;
+            
+            if isa(WFin,'gpuArray')
+                flag = true;
+                tmp = gather(WFin);
+                datatype = class(tmp);
+                clear tmp;
+            else
+                datatype = class(WFin);
+                flag = false;
+            end
+            
+            if strcmp(datatype,'single')
+                Field = single(zeros(size(WFin,1),size(WFin,2),sz(3)));
+                if flag
+                    Field = gpuArray(Field);
+                end
+            elseif strcmp(datatype,'double')
+                Field = double(zeros(size(WFin,1),size(WFin,2),sz(3)));
+            elseif strcmp(datatype,'uint8')
+                Field = uint8(zeros(size(WFin,1),size(WFin,2),sz(3)));
+            else
+                error('Unsupported data type');
+            end
+            
+            
+            
+            if isa(PS,'OptPhaseScreen')
+                for ii = 1:sz(3)
+                    Psi = PS.phasor(OS.lambda_array_(ii));
+                    Field(:,:,ii) = (OS.WF_(:,:,ii) .* Psi);
+                end
+                OS.setField(Field);
+                OS.ReIm2WF;
+                if OS.verbose == 1
+                    fprintf('Phase Screen %s Applied\n',PS.name);
+                end
+            else
+                error('Phasescreen must be an OptPhaseScreen object');
+            end
+        end % of ApplyPhaseScreen
         
         function OS = PropagateSystem1(OS,starting_elem, ending_elem,n0)
             % OS = PropagateSystem1(OS, starting_elem, ending_elem)
