@@ -6,11 +6,14 @@ Most of this code was written by and owned by Alexander T. Rodack and Justin M. 
 
 Zernike functions in Utilities were written and provided by Ruslan Belikov and Jared Males.  
 
-To install, download or clone the Propagator repository. Then add the directory to the MATLAB path.
+Phase Screen code inspired by Johanan Codona. He has some great code at https://github.com/jlcodona/AOSim2.  
+
+To install, download or clone the Propagator repository. Then add the directory to the MATLAB path. See Issues tab for file path considerations.
 
 The code is still under development. More explanation will be added here once the code reaches a good settling point.
 
 Currently supported branch: v0.2.
+Currently reworking structure a bit in branch v0.2_beta.
 
 Alexander T. Rodack<br>
 Tucson, AZ.
