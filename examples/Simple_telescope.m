@@ -159,7 +159,7 @@ ylabel('\lambda / D');
 title('Central \lambda PSF');
 drawnow;
 
-figure(4);
+figure(10);
 imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(combined_exposure / max(max(combined_exposure))),[-4,0])
 axis xy; axis square;
 colorbar;
@@ -213,7 +213,7 @@ combined_exposure = combined_exposure / length(lambda);
 
 
 
-figure(10);
+figure(5);
 imagesc(ldx(:,:,length(lambda)/2),ldy(:,:,length(lambda)/2),log10(OS.PSF_(:,:,length(lambda)/2) / max(max(OS.PSF_(:,:,length(lambda)/2)))),[-4,0])
 axis xy; axis square;
 colorbar;

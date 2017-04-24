@@ -906,7 +906,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             sz2 = size(PS.screen_);
             if length(sz2) == 2
-                sz(3) = 1;
+                sz2(3) = 1;
             end
             
             if ~isequal(sz(3),sz2(3))
