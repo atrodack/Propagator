@@ -899,12 +899,13 @@ classdef OptSys < matlab.mixin.Copyable
         function OS = ApplyPhaseScreen(OS,PS)
             % OS = ApplyPhaseScreen(OS,PS)
             
+            
             sz = size(OS.WF_);
             if length(sz) == 2
                 sz(3) = 1;
             end
             
-            sz2 = size(PS.screen_);
+            sz2 = size(PS.field_);
             if length(sz2) == 2
                 sz2(3) = 1;
             end
@@ -914,38 +915,11 @@ classdef OptSys < matlab.mixin.Copyable
             end
             
             WFin = OS.WF_;
-            
-            if isa(WFin,'gpuArray')
-                flag = true;
-                tmp = gather(WFin);
-                datatype = class(tmp);
-                clear tmp;
-            else
-                datatype = class(WFin);
-                flag = false;
-            end
-            
-            if strcmp(datatype,'single')
-                Field = single(zeros(size(WFin,1),size(WFin,2),sz(3)));
-                if flag
-                    Field = gpuArray(Field);
-                end
-            elseif strcmp(datatype,'double')
-                Field = double(zeros(size(WFin,1),size(WFin,2),sz(3)));
-            elseif strcmp(datatype,'uint8')
-                Field = uint8(zeros(size(WFin,1),size(WFin,2),sz(3)));
-            else
-                error('Unsupported data type');
-            end
-            
-            
+            lambda_array = OS.lambda_array_;
             
             if isa(PS,'OptPhaseScreen')
-                for ii = 1:sz(3)
-                    Psi = PS.phasor(OS.lambda_array_,ii);
-                    Field(:,:,ii) = (OS.WF_(:,:,ii) .* Psi);
-                end
-                OS.setField(Field);
+                WFout = PS.ApplyPhaseScreen(WFin,lambda_array);
+                OS.setField(WFout);
                 OS.ReIm2WF;
                 if OS.verbose == 1
                     fprintf('Phase Screen %s Applied\n',PS.name);
@@ -953,7 +927,8 @@ classdef OptSys < matlab.mixin.Copyable
             else
                 error('Phasescreen must be an OptPhaseScreen object');
             end
-        end % of ApplyPhaseScreen
+            
+        end
         
         function OS = PropagateSystem1(OS,starting_elem, ending_elem,n0)
             % OS = PropagateSystem1(OS, starting_elem, ending_elem)

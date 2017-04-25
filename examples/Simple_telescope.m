@@ -173,7 +173,7 @@ drawnow;
 strehl = zeros(1,length(lambda));
 for ii = 1:length(lambda)
     k = (2*pi)/lambda(ii);
-    AOres = k*PS.screen_(:,:,ii) .* PUPIL.zsag_(:,:,ii);
+    AOres = k*PS.field_(:,:,ii) .* PUPIL.zsag_(:,:,ii);
     sigma = rms((AOres(AOres~=0)));
     strehl(ii) = exp(- (sigma)^2);
 end
@@ -185,11 +185,11 @@ strehl
 fprintf('\n\n');
 % Simulate an AO System Effect to get residual
 screen = PS.GaussianSmoothing(floor(length(lambda)/2),5e-3,[5,3]);
-AOresidual = zeros(size(PS.screen_));
+AOresidual = zeros(size(PS.field_));
 for ii = 1:length(lambda)
-    AOresidual(:,:,ii) = PS.screen_(:,:,ii) - screen;
+    AOresidual(:,:,ii) = PS.field_(:,:,ii) - screen;
 end
-PS.set_screen(AOresidual);
+PS.set_field(AOresidual);
 PS.name = 'FakeAO';
 
 
