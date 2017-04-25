@@ -1,4 +1,4 @@
-classdef OptPhaseScreen < matlab.mixin.Copyable
+classdef OptPhaseScreen < OptWF
     %OPTPHASESCREEN Class for Turbulent PhaseScreens
     %   Detailed explanation goes here
     %
@@ -8,15 +8,11 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
     % Chapter 3
     
     properties(GetAccess = 'public', SetAccess = 'public')
-        name;
-        seed;
+
     end % of public properties
     
     properties(GetAccess = 'public', SetAccess = 'protected')
         % 
-        N_;
-        dx_;
-        KR_;
         fixLF_;
         
         altitude_;          % Altitude of the phase screen [m]
@@ -27,13 +23,11 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
         
         Cn2_;               % Refractive index structure constant
         r0_;                % Fried length                 [m]
-        
-        ref_lambda_;        % Reference Wavelength         [m]
-        
+                
         Model_code_ = 3;    % Model type for PSD (see below)
         PSD_;               % Storage of the PSD
-        
-        screen_;            % Storage of the phase screen
+                
+        KR_;
                 
     end % of private properties
     
@@ -57,6 +51,7 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
 %           PROPERTIES{9,1} = dx                    [float in m]
 %           PROPERTIES{10,1} = N                    [int in pixels]
 
+            elem = elem@OptWF(PROPERTIES);
             
             if size(PROPERTIES) == [10,1]
                 if iscell(PROPERTIES) == 1
@@ -71,7 +66,7 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             elem.set_name(A{1,1});
             elem.set_altitude(A{2,1});
             elem.set_thickness(A{3,1});
-            elem.set_refLambda(A{4,1});
+            elem.set_Central_wavelength(A{4,1});
             if isempty(A{5,1})
                 elem.set_r0(A{6,1});
             else
@@ -81,15 +76,13 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             elem.set_Modelcode(A{7,1});
             elem.set_KR(A{8,1});
             elem.set_dx(A{9,1});
-            elem.set_N(A{10,1});
+            elem.set_gridsize(A{10,1});
+            elem.set_datatype;
             
         end % of constructor
         
         %% Utilities for setting Properties
-        function elem = set_name(elem,name)
-            % elem = set_name(elem,name)
-            elem.name = name;
-        end % of set_name
+        
         
         function elem = set_altitude(elem,h)
             % elem = set_altitude(elem,h)
@@ -151,12 +144,6 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             end
         end % of set_Modelcode
         
-        function elem = set_refLambda(elem,lambda)
-            % elem = set_refLambda(elem,lambda)
-            
-            elem.ref_lambda_ = lambda;
-        end % of set_refLambda
-        
         function elem = set_innerScale(elem,l0)
             % elem = set_innerscale(elem,l0)
             
@@ -181,27 +168,11 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             elem.PSD_ = PSD;
         end % of set_PSD
         
-        function elem = set_screen(elem,screen)
-            % elem = set_screen(elem,screen)
-            
-            elem.screen_ = screen;
-        end % of set_screen
-        
-        function elem = set_seed(elem,seed)
-            % elem = set_seed(elem,seed)
-            
-            elem.seed = seed;
-        end % of set_seed
-        
-        function elem = set_N(elem,N)
-            % elem = set_N(elem,N)
-            elem.N_ = N;
-        end % of set_N
-        
-        function elem = set_dx(elem,dx)
-            % elem = set_dx(elem,dx)
-            elem.dx_ = dx;
-        end % of set_dx
+%         function elem = set_screen(elem,screen)
+%             % elem = set_screen(elem,screen)
+%             
+%             elem.field_ = screen;
+%         end % of set_screen
         
         function elem = set_KR(elem,KR)
             % elem = set_KR(elem,KR)
@@ -237,7 +208,7 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
                 r0 = elem.r0_;
             end
             if nargin < 3
-                lambda = elem.ref_lambda_;
+                lambda = elem.lambda0_;
             end
             if nargin < 4
                 thickness = elem.thickness_;
@@ -267,7 +238,7 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
                 Cn2 = elem.Cn2_;
             end
             if nargin < 3
-                lambda = elem.ref_lambda_;
+                lambda = elem.lambda0_;
             end
             if nargin < 4
                 thickness = elem.thickness_;
@@ -298,7 +269,7 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
                 r0 = elem.r0_;
             end
             if nargin < 3
-                lambda = elem.ref_lambda_;
+                lambda = elem.lambda0_;
             end
             if nargin < 4
                 thickness = elem.thickness_;
@@ -332,7 +303,7 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
                 Cn2 = elem.Cn2_;
             end
             if nargin < 3
-                lambda = elem.ref_lambda_;
+                lambda = elem.lambda0_;
             end
             if nargin < 4
                 thickness = elem.thickness_;
@@ -356,47 +327,19 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             
             % convert sensor_lambda to microns
             sensor_lambda = sensor_lambda * 1e6;
-            ref_lambda = elem.ref_lambda_ * 1e6;
+            ref_lambda = elem.lambda0_ * 1e6;
             r0 = (elem.r0_) .* (sensor_lambda / ref_lambda) .^(6/5) * (cos(zenith)).^(3/5);
             
             
         end % of compute_sensorLambdar0
         
         %% Utilities
-        function Phi = phase(elem,lambda,ind)
-            % Phi = phase(elem,lambda,ind)
-            
-            if nargin < 2
-                lambda = elem.ref_lambda_;
-            end
-            if nargin < 3
-                ind = 1;
-            end
-            
-            k = (2*pi) / lambda(ind);
-            
-            
-            Phi = k .* elem.screen_(:,:,ind);
-        end % of phase
-        
-        function Psi = phasor(elem,lambda,ind)
-            % Psi = phasor(elem, lambda,ind)
-            
-            if nargin < 2
-                lambda = elem.ref_lambda_;
-            end
-            if nargin < 3
-                ind = 1;
-            end
-            
-            Psi = exp(-1i * elem.phase(lambda,ind));
-        end % of phasor
         
         function Rf = Fresnel_Scale(elem,lambda,h)
             % Rf = Fresnel_Scale(lambda,h)
             
             if nargin < 2
-                lambda = elem.ref_lambda_;
+                lambda = elem.lambda0_;
             end
             if nargin < 3
                 h = elem.altitude_;
@@ -405,63 +348,119 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             Rf = sqrt(lambda .* h);
         end % of Fresnel_Scale
         
-        function rv = complexNormalRV(elem,sigma, gridsize)
-            % rv = complexGaussianRV(sigma)
-            % Returns a complex Normal random variable with zero-mean,
-            % sigma standard deviation
-            
-            sz = [gridsize, gridsize];
-            if(isempty(elem.seed))
-                rv = (sigma/sqrt(2)) * (randn(sz) + 1i * randn(sz));
-            else
-                rng(elem.seed)
-                rv = (sigma/sqrt(2)) * (randn(sz) + 1i * randn(sz));
-                rng('default');
-            end
-        end % of complexNormalRV
         
-        function show(elem,fignum)
-            % show(elem,fignum)
-            % Plots matrix stored in screen_
-            if nargin < 2
-                figure;
-            else
-                figure(fignum);
-            end
+        function WFout = ApplyPhaseScreen(elem,WFin,lambda_array)
+            % OS = ApplyPhaseScreen(OS,PS)
             
-            sz = size(elem.screen_);
+            sz = size(WFin);
             if length(sz) == 2
                 sz(3) = 1;
             end
             
-            for ii = 1:sz(3)
-                imagesc(elem.screen_(:,:,ii))
-                plotUtils(sprintf('Displacement for %s, wavelength %d',elem.name,ii));
-                drawnow;
+            sz2 = size(elem.field_);
+            if length(sz2) == 2
+                sz2(3) = 1;
             end
             
-        end % of show
-        
-        function [KX,KY,KR,kx] = Kcoords2D(elem)
-            % [KX,KY,KR,kx] = Kcoords(OS)
+            if ~isequal(sz(3),sz2(3))
+                error('Must have a phasescreen for each wavelength');
+            end
+                        
+            if isa(WFin,'gpuArray')
+                flag = true;
+                tmp = gather(WFin);
+                datatype = class(tmp);
+                clear tmp;
+            else
+                datatype = class(WFin);
+                flag = false;
+            end
             
-            N = elem.N_;
-            dk = (2*pi) ./ (N*elem.dx_);
-            kx = ((1:N) - (N/2))*dk;
-            [KX,KY] = meshgrid(kx);
-            KR = sqrt(KX.^2 + KY.^2);
+            if strcmp(datatype,'single')
+                Field = single(zeros(size(WFin,1),size(WFin,2),sz(3)));
+                if flag
+                    Field = gpuArray(Field);
+                end
+            elseif strcmp(datatype,'double')
+                Field = double(zeros(size(WFin,1),size(WFin,2),sz(3)));
+            elseif strcmp(datatype,'uint8')
+                Field = uint8(zeros(size(WFin,1),size(WFin,2),sz(3)));
+            else
+                error('Unsupported data type');
+            end
             
-        end % of Kcoords2D
+            
+            for ii = 1:sz(3)
+                Psi = elem.phasor(lambda_array,ii);
+                Field(:,:,ii) = (WFin(:,:,ii) .* Psi);
+            end
+            WFout = Field;
+            if elem.verbose == 1
+                fprintf('Phase Screen %s Applied\n',elem.name);
+            end
+        end % of ApplyPhaseScreen
         
+        
+        %% Overloaded Method
+        function elem = set_datatype(elem,default_data_type)
+            % elem = datatype(default_data_type)
+            % Sets the datatype to use. Do not do anything if already of
+            % the correct data type.
+            % Currently supported:
+            % single
+            % double
+            % uint8
+            
+            if nargin < 2
+                default_data_type = elem.default_data_type;
+            else
+                elem.default_data_type = default_data_type;
+            end
+            
+            switch default_data_type
+                case 'single'
+                    if ~isa(elem.field_,'single')
+                        elem.field_ = single(elem.field_);
+                        elem.PSD_ = single(elem.PSD_);
+                        elem.KR_ = single(elem.KR_);
+                        if elem.verbose == 1
+                            fprintf('Data Type set to single\n');
+                        end
+                    end
+                    
+                case 'double'
+                    if ~isa(elem.field_,'double')
+                        elem.OS.field_ = double(elem.field_);
+                        elem.PSD_ = double(elem.PSD_);
+                        elem.KR_ = double(elem.KR_);
+                        if elem.verbose == 1
+                            fprintf('Data Type set to double\n');
+                        end
+                    end
+                    
+                case 'uint8'
+                    if ~isa(elem.field_,'uint8')
+                        elem.field_ = uint8(elem.field_);
+                        elem.PSD_ = uint8(elem.PSD_);
+                        elem.KR_ = uint8(elem.KR_);
+                        if elem.verbose == 1
+                            fprintf('Data Type set to uint8\n');
+                        end
+                    end
+                    
+                otherwise
+                    error('I do not understand that data type (yet)!');
+            end
+        end % of set_datatype
         
         
         %% Make the screen
         
         function elem = makeScreen(elem,N,KR,dx,fixLF,L0,l0,alpha,thickness,Cn2)
-        % elem = makeScreen(elem,N_,KR,dx,L0,l0,alpha,thickness,altitude,Cn2)
+        % elem = makeScreen(elem,N,KR,dx,L0,l0,alpha,thickness,altitude,Cn2)
         
         if nargin < 2
-            N = elem.N_;
+            N = elem.gridsize_;
         end
         if nargin < 3
             KR = elem.KR_;
@@ -531,9 +530,10 @@ classdef OptPhaseScreen < matlab.mixin.Copyable
             end
         end
         
-        elem.screen_ = screen_;
+        elem.field_ = screen_;
         elem.PSD_ = PSD_;
-            
+        elem.set_datatype;
+        
         end % of makeScreen
         
     end % of methods

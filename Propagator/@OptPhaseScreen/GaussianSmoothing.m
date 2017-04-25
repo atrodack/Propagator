@@ -8,7 +8,7 @@ function [ screen ] = GaussianSmoothing( PS, ind, SmoothSize, WindLag )
 dx = PS.dx_;
 Kwidth = 5*SmoothSize;
 SMOOTH = fspecial('gaussian',ceil(Kwidth/dx),SmoothSize/dx);
-screen = PS.screen_(:,:,ind);
+screen = PS.field_(:,:,ind);
 screen = conv2(screen,SMOOTH,'same');
 
 if nargin>2
