@@ -66,7 +66,7 @@ classdef OptPhaseScreen < OptWF
             elem.set_name(A{1,1});
             elem.set_altitude(A{2,1});
             elem.set_thickness(A{3,1});
-            elem.set_Central_wavelength(A{4,1});
+            elem.set_Central_Wavelength(A{4,1});
             if isempty(A{5,1})
                 elem.set_r0(A{6,1});
             else
@@ -349,57 +349,6 @@ classdef OptPhaseScreen < OptWF
         end % of Fresnel_Scale
         
         
-        function WFout = ApplyPhaseScreen(elem,WFin,lambda_array)
-            % OS = ApplyPhaseScreen(OS,PS)
-            
-            sz = size(WFin);
-            if length(sz) == 2
-                sz(3) = 1;
-            end
-            
-            sz2 = size(elem.field_);
-            if length(sz2) == 2
-                sz2(3) = 1;
-            end
-            
-            if ~isequal(sz(3),sz2(3))
-                error('Must have a phasescreen for each wavelength');
-            end
-                        
-            if isa(WFin,'gpuArray')
-                flag = true;
-                tmp = gather(WFin);
-                datatype = class(tmp);
-                clear tmp;
-            else
-                datatype = class(WFin);
-                flag = false;
-            end
-            
-            if strcmp(datatype,'single')
-                Field = single(zeros(size(WFin,1),size(WFin,2),sz(3)));
-                if flag
-                    Field = gpuArray(Field);
-                end
-            elseif strcmp(datatype,'double')
-                Field = double(zeros(size(WFin,1),size(WFin,2),sz(3)));
-            elseif strcmp(datatype,'uint8')
-                Field = uint8(zeros(size(WFin,1),size(WFin,2),sz(3)));
-            else
-                error('Unsupported data type');
-            end
-            
-            
-            for ii = 1:sz(3)
-                Psi = elem.phasor(lambda_array,ii);
-                Field(:,:,ii) = (WFin(:,:,ii) .* Psi);
-            end
-            WFout = Field;
-            if elem.verbose == 1
-                fprintf('Phase Screen %s Applied\n',elem.name);
-            end
-        end % of ApplyPhaseScreen
-        
         
         %% Overloaded Method
         function elem = set_datatype(elem,default_data_type)
@@ -460,7 +409,7 @@ classdef OptPhaseScreen < OptWF
         % elem = makeScreen(elem,N,KR,dx,L0,l0,alpha,thickness,altitude,Cn2)
         
         if nargin < 2
-            N = elem.gridsize_;
+            N = elem.gridsize_(1);
         end
         if nargin < 3
             KR = elem.KR_;

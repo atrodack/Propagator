@@ -96,7 +96,7 @@ classdef OptSys < matlab.mixin.Copyable
             if OS.nGPUs > 0
                 OS.initGPU;
             end
-            OS.setGridsize(sz);
+            OS.set_gridsize(sz);
             
         end % of initOptSys
         
@@ -111,7 +111,7 @@ classdef OptSys < matlab.mixin.Copyable
             if isa(elem,'OptElement')
                 OS.numElements_ = OS.numElements_ + 1;
                 OS.ELEMENTS_{OS.numElements_,1} = elem;
-                %                 OS.setConjugations; %maybe add in later
+                %                 OS.set_conjugations; %maybe add in later
                 
                 if OS.verbose == 1
                     fprintf('Element %s Added to Optical System\n',elem.name);
@@ -204,20 +204,20 @@ classdef OptSys < matlab.mixin.Copyable
         
         %% Property Setting Methods
         
-        function OS = setPscale(OS,val)
-            % OS = setPscale(OS,val)
+        function OS = set_pscale(OS,val)
+            % OS = set_pscale(OS,val)
             OS.pscale_ = val;
-        end % of setPscale
+        end % of set_pscale
         
-        function OS = setBeamrad(OS,val)
-            % OS = setBeamrad(OS,val)
+        function OS = set_beamrad(OS,val)
+            % OS = set_beamrad(OS,val)
             
             OS.beam_radius_ = val;
             
-        end % of setBeamrad
+        end % of set_beamrad
         
-        function OS = setLambdaarray(OS,lambdalist)
-            % OS = setLambdaarray(OS,lambdalist)
+        function OS = set_lambda_array(OS,lambdalist)
+            % OS = set_lambda_array(OS,lambdalist)
             
             if nargin < 2
                 if isempty(OS.lambda0_) == 0
@@ -228,14 +228,14 @@ classdef OptSys < matlab.mixin.Copyable
             else
                 OS.lambda_array_ = lambdalist;
                 if isempty(OS.lambda0_)
-                    OS.setCentralWavelength();
+                    OS.set_Central_Wavelength();
                 end
             end
-        end % of setLambdaarray
+        end % of set_lambda_array
         
         
-        function OS = setCentralWavelength(OS,lambda)
-            % OS = setCentralWavelength(OS,lambda)
+        function OS = set_Central_Wavelength(OS,lambda)
+            % OS = set_Central_Wavelength(OS,lambda)
             
             if nargin < 2
                 if isempty(OS.lambda_array_) == 0
@@ -248,22 +248,24 @@ classdef OptSys < matlab.mixin.Copyable
             else
                 OS.lambda0_ = lambda;
                 if isempty(OS.lambda_array_)
-                    OS.setLambdaarray(lambda);
+                    OS.set_lambda_array(lambda);
                 end
                 
             end
-        end % of setCentralWavelength
+        end % of set_Central_Wavelength
         
-        function OS = setWavelengthScales(OS)
-            % OS = setWavelengthScales(OS)
-            
-            tmp = OS.pscale_ / OS.lambda0_;
-            OS.lambda_scales_ = tmp * OS.lambda_array_;
-            
-        end % of setWavelengthScales
+%         
+%         function OS = setWavelengthScales(OS)
+%             % OS = setWavelengthScales(OS)
+%             
+%             tmp = OS.pscale_ / OS.lambda0_;
+%             OS.lambda_scales_ = tmp * OS.lambda_array_;
+%             
+%         end % of setWavelengthScales
+
         
-        function OS = setField(OS,field)
-            % OS = setField(OS,field)
+        function OS = set_field(OS,field)
+            % OS = set_field(OS,field)
             if nargin < 2
                 OS.planewave();
             elseif nargin == 2
@@ -277,7 +279,7 @@ classdef OptSys < matlab.mixin.Copyable
                     error('Data type not supported');
                 end
             end
-        end % of setField
+        end % of set_field
             
         function OS = setdatatype(OS,default_data_type)
             % elem = datatype(default_data_type)
@@ -324,8 +326,8 @@ classdef OptSys < matlab.mixin.Copyable
             end
         end % of setdatatype
         
-        function conjugations = setConjugations(OS)
-            % OS = setConjugations(OS)
+        function conjugations = set_conjugations(OS)
+            % OS = set_conjugations(OS)
             % Adds the zpos_ of an added element to the conjugations list
             
             conjugations = zeros(OS.numElements_,1);
@@ -334,24 +336,24 @@ classdef OptSys < matlab.mixin.Copyable
             end
             OS.conjugations_ = conjugations;
             
-        end % of setConjugations
+        end % of set_conjugations
         
-        function OS = setFnum(OS,val)
-            % OS = setFnum(OS,val)
+        function OS = set_Fnum(OS,val)
+            % OS = set_Fnum(OS,val)
             
             OS.f_number_ = val;
-        end % of setFnum
+        end % of set_Fnum
         
-        function OS = getElementFNum(OS,element_num)
-            % OS = getElementFNum(OS,element_num)
+        function OS = get_element_Fnum(OS,element_num)
+            % OS = get_element_Fnum(OS,element_num)
             % sets the f/# of the system to that of an element
             
             OS.f_number_ = OS.ELEMENTS_{element_num}.getFNumber;
-        end % of getElementFNum
+        end % of get_element_Fnum
         
         
-        function gridsize = setGridsize(OS,sz)
-            % gridsize = setGridsize(OS,sz)
+        function gridsize = set_gridsize(OS,sz)
+            % gridsize = set_gridsize(OS,sz)
             
             if nargin < 2
                 gridsize = size(OS.ELEMENTS_{1}.zsag_);
@@ -361,7 +363,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             OS.gridsize_ = gridsize;
             
-        end % of setGridsize
+        end % of set_gridsize
         
         function show(OS,fignum)
             % show(OS)
@@ -569,66 +571,6 @@ classdef OptSys < matlab.mixin.Copyable
         end % initPropagation
         
         
-        function OS = planewave(OS,amplitude,numLambdas,theta)
-            % OS = planewave(OS,amplitude,numLambdas,theta)
-            % Initializes a planewave as the stored wavefront
-            %
-            % TO DO: add off-axis planewave functionality
-            
-            % If no input, just use ones
-            if nargin < 2
-                amplitude = complex(1);
-                if isempty(OS.lambda_array_)
-                    numLambdas = 1;
-                else
-                    numLambdas = size(OS.lambda_array_,2);
-                end
-            end
-            
-            % If no number of lambdas, just use one
-            if nargin < 3
-                if isempty(OS.lambda_array_)
-                    numLambdas = 1;
-                else
-                    numLambdas = size(OS.lambda_array_,2);
-                end
-            end
-            
-            % Theta is the off axis angle of the planewave (not supported
-            % yet)
-            if nargin < 4
-                on_axis = true;
-            else
-                on_axis = false;
-            end
-            
-            if on_axis
-                if strcmp( OS.default_data_type, 'single')
-                    amplitude = single(amplitude);
-                    WF = amplitude .* ones(OS.gridsize_(1),OS.gridsize_(2));
-                    field = single(zeros(size(WF,1),size(WF,2),numLambdas));
-                elseif strcmp( OS.default_data_type, 'double')
-                    amplitude = double(amplitude);
-                    WF = amplitude .* ones(OS.gridsize_(1),OS.gridsize_(2));
-                    field = double(zeros(size(WF,1),size(WF,2),numLambdas));
-                elseif strcmp( OS.default_data_type, 'uint8')
-                    amplitude = uint8(amplitude);
-                    WF = amplitude .* ones(OS.gridsize_(1),OS.gridsize_(2));
-                    field = uint8(zeros(size(WF,1),size(WF,2),numLambdas));
-                else
-                    error('Data type not supported (yet)');
-                end
-                
-                for ii = 1:numLambdas
-                    field(:,:,ii) = WF;
-                end;
-                OS.WF_ = field;
-                
-            else  % off-axis
-                error('Not supported yet');
-            end
-        end % of planewave
-        
         function OS = ReIm2WF(OS)
             % OS = ReIm2WF(OS)
             % Converts OS.WF_ from real/imag to amp/phase, and stores that
@@ -660,7 +602,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             if nargin < 2
                 if length(OS.conjugations_) ~= OS.numElements_
-                    z_list = OS.setConjugations();
+                    z_list = OS.set_conjugations();
                 else
                     z_list = OS.conjugations_;
                 end
@@ -787,8 +729,8 @@ classdef OptSys < matlab.mixin.Copyable
             WFreal = real(WFfocus);
             WFimag = imag(WFfocus);
             [OS.WFamp,OS.WFphase] = WFReIm2AmpPhase2(WFreal,WFimag);
-            if params{3} ~= params{6}
-                OS.setField(zeros(params{6},params{6},size(WFin,3)));
+            if params{2} ~= params{6}
+                OS.set_field(zeros(params{6},params{6},size(WFin,3)));
                 OS.setdatatype(OS.default_data_type);
             end
             OS.AmpPhase2WF();
@@ -871,11 +813,11 @@ classdef OptSys < matlab.mixin.Copyable
             % OS = propagate2Elem(OS,propdist,pscale,lambda)
             
             % Old Propagation Method (pixel by pixel)
-%             OS.setField(OptSys.FresnelPropagateWF(OS.WF_,propdist,pscale,lambda));
+%             OS.set_field(OptSys.FresnelPropagateWF(OS.WF_,propdist,pscale,lambda));
 %             OS.ReIm2WF;
 
             % Faster Propagation Method
-            OS.setField(OptSys.FresnelProp(OS.WF_,propdist,pscale,lambda));
+            OS.set_field(OptSys.FresnelProp(OS.WF_,propdist,pscale,lambda));
             OS.ReIm2WF;
             
         end % of propagate2Elem
@@ -888,10 +830,10 @@ classdef OptSys < matlab.mixin.Copyable
                 % propdist
                 D = 2*OS.beam_radius_ * OS.pscale_;
                 z = OS.f_number_ * D;
-                OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0,OS.pscale_,z));
+                OS.set_field( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0,OS.pscale_,z));
                 OS.ReIm2WF;
             else
-                OS.setField( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0));
+                OS.set_field( OS.ELEMENTS_{elem_num}.ApplyElement(OS.WF_,OS.lambda_array_,n0));
                 OS.ReIm2WF;
             end
         end % of ApplyElement
@@ -919,7 +861,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             if isa(PS,'OptPhaseScreen')
                 WFout = PS.ApplyPhaseScreen(WFin,lambda_array);
-                OS.setField(WFout);
+                OS.set_field(WFout);
                 OS.ReIm2WF;
                 if OS.verbose == 1
                     fprintf('Phase Screen %s Applied\n',PS.name);
@@ -984,7 +926,7 @@ classdef OptSys < matlab.mixin.Copyable
                         fprintf('Computing Focused Field using FFT of WF00%d\n',ii-1);
                         D = 2*OS.beam_radius_ * OS.pscale_;
                         z = OS.f_number_ * D;
-                        OS.setField( OptSys.FraunhoferPropWF(OS.WF_,z,OS.pscale_,OS.lambda_array_));
+                        OS.set_field( OptSys.FraunhoferPropWF(OS.WF_,z,OS.pscale_,OS.lambda_array_));
                         
                         
                     elseif OS.ELEMENTS_{ii}.propagation_method_ == 2
@@ -1501,7 +1443,7 @@ classdef OptSys < matlab.mixin.Copyable
             
             if OS.nGPUs	 == 1
             % Send field to gpu
-            OS.setField(gpuArray(OS.WF_));
+            OS.set_field(gpuArray(OS.WF_));
             
             for ii = 1:numElems
                 % Make sure the zsag_ is of type float
@@ -1517,7 +1459,7 @@ classdef OptSys < matlab.mixin.Copyable
             elseif OS.nGPUs == 2
                 
                 % Send field to gpu
-                OS.setField(gpuArray(OS.WF_));
+                OS.set_field(gpuArray(OS.WF_));
                 
                 for ii = 1:numElems
                     % Make sure the zsag_ is of type float
@@ -1542,7 +1484,7 @@ classdef OptSys < matlab.mixin.Copyable
             numElems = OS.numElements_;
             
             % Send field to gpu
-            OS.setField(gather(OS.WF_));
+            OS.set_field(gather(OS.WF_));
             OS.PSF_ = gather(OS.PSF_);
             
             for ii = 1:numElems
@@ -1573,7 +1515,7 @@ classdef OptSys < matlab.mixin.Copyable
             numElems = OS.numElements_;
             
             % Send field to gpu
-            OS.setField(gather(OS.WF_));
+            OS.set_field(gather(OS.WF_));
             OS.PSF_ = gather(OS.PSF_);
             
             for ii = 1:numElems
