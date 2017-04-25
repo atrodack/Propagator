@@ -49,6 +49,17 @@ OS.savefile = 0;
 % Turn off verbose to suppress messages of adding elements in
 OS.toggle_verbose('off');
 
+%% Make an OptWF Object
+
+props = cell(5,1);
+props{1} = 'Field';             % string of your choosing for name of object
+props{2} = OS.gridsize_(1);     % gridsize
+props{3} = OS.pscale_;          % dx [m]
+props{4} = OS.lambda0_;         % lambda_0 [m]
+props{5} = [];                  % field_ (can be empty)
+F = OptWF(props);
+
+F.planewave(1,length(OS.lambda_array_));
 
 %% Make an OptPupil Object
 % Circular aperture
@@ -91,7 +102,7 @@ PROPERTIES{6,1} = 3e-2;                 % r0
 PROPERTIES{7,1} = 2;                    % Model code [2 = von Karman]
 PROPERTIES{8,1} = KR;                   % 2D Radial K-space coordinate
 PROPERTIES{9,1} = OS.pscale_;           % Pixel spacing
-PROPERTIES{10,1} = OS.gridsize_(1);     % Number of points to make the screen grid [NxN]
+PROPERTIES{10,1} = OS.gridsize_;     % Number of points to make the screen grid [NxN]
 
 PS = OptPhaseScreen(PROPERTIES);
 
@@ -125,11 +136,13 @@ OS.toggle_verbose('on');
 
 %% Propagate through the Atmosphere Layer
 
-% Set the input field
-OS.planewave(single(1),length(OS.lambda_array_));
+% Apply the phase screen to the field
+F.ApplyPhaseScreen(PS,lambda);
 
-% Apply to Wavefront going into System
-OS.ApplyPhaseScreen(PS);
+% Set the input field for the Optical System
+OS.setField(F.field_);
+
+
 
 
 
@@ -179,10 +192,12 @@ for ii = 1:length(lambda)
 end
 strehl
 
+
 % figure(5);
 %% Do it again except with fake AO
 
 fprintf('\n\n');
+
 % Simulate an AO System Effect to get residual
 screen = PS.GaussianSmoothing(floor(length(lambda)/2),5e-3,[5,3]);
 AOresidual = zeros(size(PS.field_));
@@ -194,10 +209,12 @@ PS.name = 'FakeAO';
 
 
 % Set the input field
-OS.planewave(single(1),length(OS.lambda_array_));
+F.planewave(single(1),length(lambda));
 
 % Apply to Wavefront going into System
-OS.ApplyPhaseScreen(PS);
+F.ApplyPhaseScreen(PS,lambda);
+
+OS.setField(F.field_);
 
 tic;
 OS.PropagateSystem1(1,2,n0);
