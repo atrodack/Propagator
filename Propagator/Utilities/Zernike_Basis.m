@@ -1,15 +1,15 @@
 
-function [Z,rms_] = Zernike_Basis(Noll_list,amplitude_list,pix_D,N)
-% Z = Zernike_Basis(Noll_list,amplitude_list,pix_D,N)
+function [Z,rms_] = Zernike_Basis(Noll_list,rms_list,pix_D,N)
+% Z = Zernike_Basis(Noll_list,rms_list,pix_D,N)
 % Make a Matrix whose columns are the Zernike basis functions given by
-% Noll_list, with rms given in amplitude_list.
+% Noll_list, with rms given in rms_list.
 %
 % pix_D is the diameter of your pupil in pixels
 % N is the grid size of the matrix
 
 
-if (length(Noll_list) ~= length(amplitude_list))
-    error('Must provide amplitude for each basis function!');
+if (length(Noll_list) ~= length(rms_list))
+    error('Must provide rms for each basis function!');
 end
 
 K = length(Noll_list);
@@ -29,7 +29,7 @@ for ii = 1:K
     tmp = Zernike2D(n,m,unit_circ.*RHO,unit_circ.*PHI);
     rms_orig = rms(tmp(tmp~=0));
     tmp = tmp * (1 / rms_orig); 
-    vec = amplitude_list(ii) * tmp(:);
+    vec = rms_list(ii) * tmp(:);
     
     Z(ii,:) = vec;
     rms_(ii) = rms(vec(vec~=0));
