@@ -1,11 +1,13 @@
 
 function [Z,rms_] = Zernike_Basis(Noll_list,rms_list,pix_D,N)
 % Z = Zernike_Basis(Noll_list,rms_list,pix_D,N)
-% Make a Matrix whose columns are the Zernike basis functions given by
+% Make a Matrix whose rows are the Zernike basis functions given by
 % Noll_list, with rms given in rms_list.
 %
 % pix_D is the diameter of your pupil in pixels
 % N is the grid size of the matrix
+
+DEBUG = true;
 
 
 if (length(Noll_list) ~= length(rms_list))
@@ -26,25 +28,35 @@ rms_ = init_variable(K,1,1,'single',0);
 
 for ii = 1:K
     [n,m] = Noll(Noll_list(ii));
-    tmp = Zernike2D(n,m,unit_circ.*RHO,unit_circ.*PHI);
+    tmp = Zernike2D(n,m,RHO,PHI);
+    tmp = tmp .* unit_circ;
+    
+    %     tmp=tmp*sqrt(2*(n+1));
+    %     if m == 0,
+    %         tmp=tmp/sqrt(2);
+    %     end
+    
     rms_orig = rms(tmp(tmp~=0));
-    tmp = tmp * (1 / rms_orig); 
+    tmp = tmp / (rms_orig);
+    
     vec = rms_list(ii) * tmp(:);
     
     Z(ii,:) = vec;
     rms_(ii) = rms(vec(vec~=0));
+    %     rms_(ii) = rms(vec);
     
     clear tmp;
     
-    % DEBUG
-%     tmp = reshape(Z(ii,:),[N,N]);
-%     imagesc(tmp);
-%     axis square; axis xy;
-%     colorbar;
-%     title(sprintf('k = %d',ii));
-%     drawnow;
-%     pause(0.3);
-    
+    if DEBUG
+        tmp = reshape(Z(ii,:),[N,N]);
+        figure(10000)
+        imagesc(tmp);
+        axis square; axis xy;
+        colorbar;
+        title(sprintf('k = %d',ii));
+        drawnow;
+        pause(0.3);
+    end
 end
 
 
