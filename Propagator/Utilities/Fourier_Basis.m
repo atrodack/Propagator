@@ -1,19 +1,23 @@
-function [ F ] = Fourier_Basis(L, endpoint,N )
-%[ F ] = Fourier_Basis(  L, endpoint, N )
+function [ F ] = Fourier_Basis(L, Nbasis,N )
+%[ F ] = Fourier_Basis(  L, Nbasis, N )
 % Makes a matrix whose rows are normalized Fourier basis functions
 % 
-% L: side of the square expansion functions are inscribed in
+% L: side of the square expansion functions are created in (width of the
+%    matrix in length)
 %
-% endpoint: integer value index determining highest frequency basis
-%           function to make. See code below to see how it relates to the
-%           creation of the basis functions
-% 
+% Nbasis: number of basis functions to create. Input should be a square
+%         integer. If non-square integer is chosen, the closest square integer is
+%         used.
+%
 % N: Sampling lattice size in pixels
 
 DEBUG = false;
 
 FoVr = L/2;
-K = length(-endpoint+1:endpoint)^2;
+endpoint = round((round(sqrt(Nbasis))-1)/2);
+K = length(-endpoint:endpoint)^2;
+
+fprintf('Using %d Fourier Modes\n',K);
 
 % Coordinates and scales
 x = linspace(-FoVr,FoVr,N);
@@ -23,8 +27,8 @@ y = x;
 F = init_variable(K,N*N,1,'single',0);
 
 counter = 1;
-for k = -endpoint+1:endpoint
-    for l = -endpoint+1:endpoint
+for k = -endpoint:endpoint
+    for l = -endpoint:endpoint
         basis = (1/L) * exp(2*pi*1i*(k*X + l*Y)/L);
         F(counter, :) = basis(:);
         

@@ -1,8 +1,10 @@
-function [ obj ] = Evaluate_Fourier_Expansion( alphas, L, endpoint, N)
+function [ obj ] = Evaluate_Fourier_Expansion( alphas, L, Nbasis, N)
 % [ obj ] = Evaluate_Fourier_Expansion( alphas, L, endpoint, FoVsize)
-%   L = square side length
-%   endpoint = integer that determines how many modes are created
-%   (ie 16 for 1024 modes, running from -15 to 16 for double index)
+% alphas: Fourier Coefficients for basis functions  
+% L: square side length
+% Nbasis: Number of basis functions to use
+% N: Sampling lattice size
+
 
 FoVr = L/2;
 obj = zeros(N,N);
@@ -12,10 +14,14 @@ x = linspace(-FoVr,FoVr,N);
 y = x;
 [X,Y] = meshgrid(x,y);
 
+endpoint = round((round(sqrt(Nbasis))-1)/2);
+K = length(-endpoint:endpoint)^2;
+
+% fprintf('Using %d Fourier Modes\n',K);
 
 counter = 1;
-for k = -endpoint+1:endpoint
-    for l = -endpoint+1:endpoint
+for k = -endpoint:endpoint
+    for l = -endpoint:endpoint
         basis = (1/L) * exp((2*pi*1i*(k*X + l*Y)/L));
         tmp = (((basis)).*alphas(counter)) / N;
         obj = obj + tmp';

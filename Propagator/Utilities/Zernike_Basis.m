@@ -7,7 +7,7 @@ function [Z,rms_] = Zernike_Basis(Noll_list,rms_list,pix_D,N)
 % pix_D is the diameter of your pupil in pixels
 % N is the grid size of the matrix
 
-DEBUG = true;
+DEBUG = false;
 
 
 if (length(Noll_list) ~= length(rms_list))
