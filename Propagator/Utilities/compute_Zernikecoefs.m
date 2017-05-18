@@ -36,9 +36,11 @@ if ~use_mat
         [n,m] = Noll(Noll_list(ii));
         tmp = Zernike2D(n,m,RHO,PHI);
         tmp = tmp.*unit_circ;
-        rms_orig = rms(tmp(tmp~=0));
-        basis = tmp * (1 / rms_orig);
-        tmp = (basis)' .* obj;
+        
+%         rms_orig = rms(tmp(tmp~=0));
+%         basis = tmp * (1 / rms_orig);
+        basis = tmp;
+        tmp = conj(basis) .* obj;
         alpha_n(counter+1) = sum(tmp(:)) / sum(unit_circ(:));
         counter = counter+1;
         
@@ -56,7 +58,7 @@ else
     counter = 0;
     
     for ii = 1:Nzerns
-        tmp = (basis_set(ii,:))' .* obj(:);
+        tmp = conj(basis_set(ii,:)) .* obj(:);
         alpha_n(counter+1) = sum(tmp) / sum(mask);
         counter = counter+1;
         

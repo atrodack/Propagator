@@ -10,23 +10,29 @@ end
 
 switch datatype
     case 'single'
-        if flag
+        if flag==1
             var = single(ones(nrows,mcols,zslices));
-        else
+        elseif flag == 0
             var = single(zeros(nrows,mcols,zslices));
+        elseif strcmpi(flag,'cell')
+            var = cell(nrows,mcols,zslices);
         end
         
     case 'double'
-        if flag
+        if flag==1
             var = double(ones(nrows,mcols,zslices));
-        else
+        elseif flag == 0
             var = double(zeros(nrows,mcols,zslices));
+        elseif strcmpi(flag,'cell')
+            var = cell(nrows,mcols,zslices);
         end
     case 'uint8'
-        if flag
+        if flag==1
             var = uint8(ones(nrows,mcols,zslices));
-        else
+        elseif flag == 0
             var = uint8(zeros(nrows,mcols,zslices));
+        elseif strcmpi(flag,'cell')
+            var = cell(nrows,mcols,zslices);
         end
     otherwise
         error('Data Types Supported are single, double, and uint8');
