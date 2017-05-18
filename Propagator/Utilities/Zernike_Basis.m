@@ -36,8 +36,8 @@ for ii = 1:K
     %         tmp=tmp/sqrt(2);
     %     end
     
-    rms_orig = rms(tmp(tmp~=0));
-    tmp = tmp / (rms_orig);
+%     rms_orig = rms(tmp(tmp~=0));
+%     tmp = tmp / (rms_orig);
     
     vec = rms_list(ii) * tmp(:);
     
