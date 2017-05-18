@@ -19,9 +19,9 @@ field_ = init_variable(sz(1),sz(2),sz(3),'single',0);
 for ii = 1:length(lambda)
     coeff = ((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
     if direction == -1
-        field_(:,:,ii) = coeff * ifftshift(ifft2(ifftshift(field(:,:,ii) ))) .* (pscale .* pscale);
+        field_(:,:,ii) = coeff * ifftshift(ifft2(ifftshift(OptSys.halfpixelShift( field(:,:,ii),1 ) ))) .* (pscale .* pscale);
     else
-        field_(:,:,ii) = coeff * fftshift(fft2(fftshift(field(:,:,ii) ))) .* (sz(1).* sz(2) .* pscale .* pscale);
+        field_(:,:,ii) = coeff * fftshift(fft2(fftshift(OptSys.halfpixelShift( field(:,:,ii),1 ) ))) .* (sz(1).* sz(2) .* pscale .* pscale);
     end
 end
 [amp,pha] = WFReIm2AmpPhase2(real(field_),imag(field_));
