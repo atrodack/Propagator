@@ -20,7 +20,7 @@ if nGPUs > 0
     screen = gpuArray(screen);
     fprintf('***************************************************\n');
     fprintf('*         Now Using GPU %s        *\n',device.Name);
-    fprintf('***************************************************\n\n');
+    fprintf('***************************************************\n');
 end
 
 screen = gather(conv2(screen,SMOOTH,'same'));

@@ -315,8 +315,6 @@ classdef OptWF < matlab.mixin.Copyable
             % in F.field_
             if isa(F.field_,'gpuArray')
                 flag = true;
-            else
-                flag = false;
             end
             [F.amp_,F.pha_] = WFReIm2AmpPhase2(real(F.field_),imag(F.field_));
             if flag
@@ -395,17 +393,10 @@ classdef OptWF < matlab.mixin.Copyable
                 flag = false;
             end
             
-            WFfocus = init_variable(sz(1),sz(2),sz(3),datatype,0);
-            if flag
-                WFfocus = gpuArray(WFfocus);
-            end
+            WFfocus = init_variable(sz(1),sz(2),sz(3),F.default_data_type,0);
             
             for ii = 1:length(lambda)
-                if flag
-                    coeff = gpuArray((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
-                else
-                    coeff = ((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
-                end
+                coeff = ((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
                 WFfocus(:,:,ii) = coeff * fftshift(fft2(fftshift(OptSys.halfpixelShift( F.field_(:,:,ii),1 ) ))) .* (sz(1).* sz(2) .* pscale .* pscale);
             end
             F.set_field(WFfocus);
