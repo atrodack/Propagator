@@ -26,9 +26,9 @@ elseif WF.nGPUs == 2
     % Send field to gpu
     WF.set_field(gpuArray(WF.field_));
     
-    fprintf('\n\n\n***************************************************\n');
-    fprintf('*         Now Using GPU %s        *\n',WF.DEVICES{1}.Name);
     fprintf('***************************************************\n');
+    fprintf('*         Now Using GPU %s        *\n',WF.DEVICES{1}.Name);
+    fprintf('***************************************************\n\n');
     
     
 end
