@@ -17,18 +17,31 @@ if WF.nGPUs	 == 1
     
     
     
-    fprintf('***************************************************\n');
-    fprintf('*         Now Using GPU %s        *\n',WF.DEVICES{1}.Name);
-    fprintf('***************************************************\n\n');
+%     fprintf('***************************************************\n');
+%     fprintf('*         Now Using GPU %s        *\n',WF.DEVICES{1}.Name);
+%     fprintf('***************************************************\n\n');
+    cprintf('comment','***************************************************\n')
+    cprintf('comment','* ');
+    cprintf('text','         Now Using GPU ');
+    cprintf('-err','%s ',WF.DEVICES{1}.Name);
+    cprintf('comment','      *\n')
+    cprintf('comment','***************************************************\n\n')
+    
     %             warning('GPU:PROPNS','Propagation is currently pixel by pixel, and not a matrix multiply. This will be incredibly slow on GPU. Consider using CPU');
 elseif WF.nGPUs == 2
     
     % Send field to gpu
     WF.set_field(gpuArray(WF.field_));
     
-    fprintf('***************************************************\n');
-    fprintf('*         Now Using GPU %s        *\n',WF.DEVICES{1}.Name);
-    fprintf('***************************************************\n\n');
+%     fprintf('***************************************************\n');
+%     fprintf('*         Now Using GPU %s        *\n',WF.DEVICES{1}.Name);
+%     fprintf('***************************************************\n\n');
+    cprintf('comment','***************************************************\n')
+    cprintf('comment','* ');
+    cprintf('text','         Now Using GPU ');
+    cprintf('-err','%s ',WF.DEVICES{1}.Name);
+    cprintf('comment','      *\n')
+    cprintf('comment','***************************************************\n\n')
     
     
 end

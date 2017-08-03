@@ -18,9 +18,15 @@ if nGPUs > 0
     device = gpuDevice(Device);
     SMOOTH = gpuArray(SMOOTH);
     screen = gpuArray(screen);
-    fprintf('***************************************************\n');
-    fprintf('*         Now Using GPU %s        *\n',device.Name);
-    fprintf('***************************************************\n\n');
+    %     fprintf('***************************************************\n');
+    %     fprintf('*         Now Using GPU %s        *\n',device.Name);
+    %     fprintf('***************************************************\n\n');
+    cprintf('comment','***************************************************\n')
+    cprintf('comment','* ');
+    cprintf('text','         Now Using GPU ');
+    cprintf('-err','%s ',device.Name);
+    cprintf('comment','      *\n')
+    cprintf('comment','***************************************************\n\n')
 end
 
 screen = gather(conv2(screen,SMOOTH,'same'));
