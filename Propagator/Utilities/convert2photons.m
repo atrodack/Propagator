@@ -4,7 +4,7 @@ function [ img_out ] = convert2photons( img_in, Nphotons )
 
 Nphotons = double(Nphotons);
 img_in = double(img_in);
-img_in = img_in ./ max(max(abs(img_in)));
+% img_in = img_in ./ max(max(abs(img_in)));
 
 
 total = sum(img_in(:));
