@@ -463,7 +463,8 @@ classdef OptPhaseScreen < OptWF
             grid = rv.* sqrt(PSD);
             grid_ft = fftshift(fft2(fftshift(grid)));
             tmp = grid_ft .* 24.6 / dx / N;
-            
+%             grid_ft = fftshift(ifft2(fftshift(grid)));
+%             tmp = grid_ft * dx*dx*N*N;
             
             if(fixLF)
                 Nlf = 8;

@@ -11,7 +11,9 @@ nGPUs = gpuDeviceCount;
 
 dx = PS.dx_;
 Kwidth = 5*SmoothSize;
-SMOOTH = fspecial('gaussian',ceil(Kwidth/dx),SmoothSize/dx);
+% SMOOTH = fspecial('gaussian',ceil(Kwidth/dx),SmoothSize/dx);
+SMOOTH = fspecial('gaussian',Kwidth,SmoothSize);
+SMOOTH = single(SMOOTH);
 screen = PS.field_(:,:,ind);
 
 if nGPUs > 0
