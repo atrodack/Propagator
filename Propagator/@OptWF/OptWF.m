@@ -31,6 +31,11 @@ classdef OptWF < matlab.mixin.Copyable
         amp_;
         pha_;
         
+        % GPU properties
+        useGPU = 0;         % use a GPU flag
+        nGPUs;              % Number of GPUs MATLAB finds
+        DEVICES;            % A list of those GPUs
+        
     end
     
     
@@ -181,7 +186,7 @@ classdef OptWF < matlab.mixin.Copyable
                     
                 case 'double'
                     if ~isa(F.field_,'double')
-                        F.OS.field_ = double(F.field_);
+                        F.field_ = double(F.field_);
                         if F.verbose == 1
                             fprintf('Data Type set to double\n');
                         end
@@ -308,8 +313,16 @@ classdef OptWF < matlab.mixin.Copyable
             % F = ReIm2WF(F)
             % Converts F.field_ from real/imag to amp/phase, and stores that
             % in F.field_
-            
+            if isa(F.field_,'gpuArray')
+                flag = true;
+            else
+                flag = false;
+            end
             [F.amp_,F.pha_] = WFReIm2AmpPhase2(real(F.field_),imag(F.field_));
+            if flag
+                F.amp_ = gpuArray(F.amp_);
+                F.pha_ = gpuArray(F.pha_);
+            end
             F.AmpPhase2WF();
             
         end % of ReIm2WF
@@ -372,10 +385,27 @@ classdef OptWF < matlab.mixin.Copyable
             
             k = (2*pi)./lambda;
             
-            WFfocus = init_variable(sz(1),sz(2),sz(3),F.default_data_type,0);
+            if isa( F.field_,'gpuArray')
+                flag = true;
+                tmp = gather( F.field_);
+                datatype = class(tmp);
+                clear tmp;
+            else
+                datatype = class( F.field_);
+                flag = false;
+            end
+            
+            WFfocus = init_variable(sz(1),sz(2),sz(3),datatype,0);
+            if flag
+                WFfocus = gpuArray(WFfocus);
+            end
             
             for ii = 1:length(lambda)
-                coeff = ((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
+                if flag
+                    coeff = gpuArray((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
+                else
+                    coeff = ((exp(1i.*k(ii)*propdist))/(1i.*(lambda(ii))*propdist));
+                end
                 WFfocus(:,:,ii) = coeff * fftshift(fft2(fftshift(OptSys.halfpixelShift( F.field_(:,:,ii),1 ) ))) .* (sz(1).* sz(2) .* pscale .* pscale);
             end
             F.set_field(WFfocus);
@@ -490,8 +520,11 @@ classdef OptWF < matlab.mixin.Copyable
             if on_axis
                 amplitude = single(amplitude);
                 WF = amplitude .* init_variable(F.gridsize_(1), F.gridsize_(2),numLambdas,F.default_data_type,1);
-                F.field_ = WF;
-                
+                if F.useGPU == 1
+                    F.field_ = gpuArray(WF);
+                else
+                    F.field_ = WF;
+                end
             else  % off-axis
                 
                 [X,Y] = F.Coords2D;
@@ -503,7 +536,11 @@ classdef OptWF < matlab.mixin.Copyable
                 
                 alpha = exp(-1i.*(kappax.*X+kappay.*Y));
                 WF = amplitude .* init_variable(F.gridsize_(1), F.gridsize_(2),numLambdas,F.default_data_type,1) .*alpha;
-                F.field_ = WF;
+                if F.useGPU == 1
+                    F.field_ = gpuArray(WF);
+                else
+                    F.field_ = WF;
+                end
             end
         end % of planewave
         
@@ -552,7 +589,11 @@ classdef OptWF < matlab.mixin.Copyable
             
             if isa(PS,'OptPhaseScreen')
                 for ii = 1:sz(3)
-                    Psi = PS.phasor(lambda_array,ii);
+                    if flag
+                        Psi = gpuArray(PS.phasor(lambda_array,ii));
+                    else
+                        Psi = (PS.phasor(lambda_array,ii));
+                    end
                     Field(:,:,ii) = (F.field_(:,:,ii) .* Psi);
                 end
                 F.set_field(Field);
@@ -562,7 +603,11 @@ classdef OptWF < matlab.mixin.Copyable
             else
                 for ii = 1:sz(3)
                     k = (2*pi) / lambda_array(ii);
-                    Psi = exp(-1i * k * screen);
+                    if flag
+                        Psi = gpuArray(exp(-1i * k * screen));
+                    else
+                        Psi = exp(-1i * k * screen);
+                    end
                     Field(:,:,ii) = (F.field_(:,:,ii) .* Psi);
                 end
                 F.set_field(Field);
