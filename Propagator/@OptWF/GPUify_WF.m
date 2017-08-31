@@ -1,6 +1,10 @@
-function [ WF ] = GPUify_WF( WF )
+function [ WF ] = GPUify_WF( WF, verbose )
 %GPUIFY_WF Summary of this function goes here
 %   Detailed explanation goes here
+
+if nargin < 2
+    verbose = true;
+end
 
 % Check if GPU use is allowed
 if(WF.useGPU ~=1)
@@ -16,33 +20,34 @@ if WF.nGPUs	 == 1
     WF.set_field(gpuArray(WF.field_));
     
     
-    
-%     fprintf('***************************************************\n');
-%     fprintf('*         Now Using GPU %s        *\n',WF.DEVICES{1}.Name);
-%     fprintf('***************************************************\n\n');
-    cprintf('comment','***************************************************\n')
-    cprintf('comment','* ');
-    cprintf('text','         Now Using GPU ');
-    cprintf('-err','%s ',WF.DEVICES{1}.Name);
-    cprintf('comment','      *\n')
-    cprintf('comment','***************************************************\n\n')
-    
+    if verbose
+        %     fprintf('***************************************************\n');
+        %     fprintf('*         Now Using GPU %s        *\n',WF.DEVICES{1}.Name);
+        %     fprintf('***************************************************\n\n');
+        cprintf('comment','***************************************************\n')
+        cprintf('comment','* ');
+        cprintf('text','         Now Using GPU ');
+        cprintf('-err','%s ',WF.DEVICES{1}.Name);
+        cprintf('comment','      *\n')
+        cprintf('comment','***************************************************\n\n')
+    end
     %             warning('GPU:PROPNS','Propagation is currently pixel by pixel, and not a matrix multiply. This will be incredibly slow on GPU. Consider using CPU');
 elseif WF.nGPUs == 2
     
     % Send field to gpu
     WF.set_field(gpuArray(WF.field_));
     
-%     fprintf('***************************************************\n');
-%     fprintf('*         Now Using GPU %s        *\n',WF.DEVICES{1}.Name);
-%     fprintf('***************************************************\n\n');
-    cprintf('comment','***************************************************\n')
-    cprintf('comment','* ');
-    cprintf('text','         Now Using GPU ');
-    cprintf('-err','%s ',WF.DEVICES{1}.Name);
-    cprintf('comment','      *\n')
-    cprintf('comment','***************************************************\n\n')
-    
+    if verbose
+        %     fprintf('***************************************************\n');
+        %     fprintf('*         Now Using GPU %s        *\n',WF.DEVICES{1}.Name);
+        %     fprintf('***************************************************\n\n');
+        cprintf('comment','***************************************************\n')
+        cprintf('comment','* ');
+        cprintf('text','         Now Using GPU ');
+        cprintf('-err','%s ',WF.DEVICES{1}.Name);
+        cprintf('comment','      *\n')
+        cprintf('comment','***************************************************\n\n')
+    end
     
 end
 
