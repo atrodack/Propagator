@@ -31,6 +31,8 @@ if vec == 0
             field_(:,:,ii) = gather(coeff * ifftshift(ifft2(ifftshift(OptSys.halfpixelShift( field(:,:,ii),1 ) ))) .* (pscale .* pscale));
         else
             field_(:,:,ii) = gather(coeff * fftshift(fft2(fftshift(OptSys.halfpixelShift( field(:,:,ii),1 ) ))) .* (sz(1).* sz(2) .* pscale .* pscale));
+%             field_(:,:,ii) = gather(coeff * fftshift(fft2(fftshift(( field(:,:,ii) ) ))) .* (sz(1).* sz(2) .* pscale .* pscale));
+
         end
     end
 
@@ -41,6 +43,8 @@ else
             field_(:,:,ii) = gather((coeff * ifftshift(ifft2(ifftshift(OptSys.halfpixelShift( reshape(field(:,:,ii),sz(1),sz(2)),1 ) ))) .* (pscale .* pscale)));
         else
             field_(:,:,ii) = gather(coeff * fftshift(fft2(fftshift(OptSys.halfpixelShift( reshape(field(:,:,ii),sz(1),sz(2)),1 ) ))) .* (sz(1).* sz(2) .* pscale .* pscale));
+%             field_(:,:,ii) = gather(coeff * fftshift(fft2(fftshift(( reshape(field(:,:,ii),sz(1),sz(2)) ) ))) .* (sz(1).* sz(2) .* pscale .* pscale));
+                        
         end
     end
 end
