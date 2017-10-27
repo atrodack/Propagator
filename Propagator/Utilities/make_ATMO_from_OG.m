@@ -13,14 +13,14 @@ counter_pha = 1;
 for ii = 3:2+(2*NB_TSPAN)
     filename = filenames(ii).name;
     
-    if mod(ii,2) == 0
+    if mod(ii,2) == 1
         fprintf('Reading image %d\n',ii-3);
         tmp_amp = fitsread(filename);
         for jj = 1:size(tmp_amp,3)
             Atmo_amp(:,:,counter_amp) = tmp_amp(:,:,jj);
             counter_amp = counter_amp+1;
         end
-    elseif mod(ii,2) == 1
+    elseif mod(ii,2) ==0
         fprintf('Reading image %d\n',ii-3);
         tmp_pha = fitsread(filename);
         for jj = 1:size(tmp_pha,3)

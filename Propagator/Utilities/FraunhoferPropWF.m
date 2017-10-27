@@ -1,10 +1,13 @@
-function field_ = FraunhoferPropWF(field, propdist, pscale, lambda,direction)
+function field_ = FraunhoferPropWF(field, propdist, pscale, lambda,direction,photonz)
 % F = FraunhoferProp(F, propdist, pscale, lambda)
 % Monochromatic Calculation - doesn't not scale psf size with
 % wavelength
 
 if nargin < 5
     direction = 1;
+    photonz = false;
+elseif nargin < 6
+    photonz = false;
 end
 
 sz = size(field);
@@ -17,7 +20,14 @@ if length(sz) == 2
         vec = false;
     end
     sz(3) = 1;
+end
 
+Nphotons_in_input_field = zeros(1,sz(3));
+if photonz
+    for jj = 1:sz(3)
+        amp(:,:,jj) = sqrt(real(field(:,:,jj)).*real(field(:,:,jj)) + imag(field(:,:,jj)).*imag(field(:,:,jj)));
+        Nphotons_in_input_field(1,jj) = sum(sum(amp(:,:,jj)));
+    end
 end
 
 k = (2*pi)./lambda;
@@ -52,6 +62,9 @@ end
 
 [amp,pha] = WFReIm2AmpPhase2(real(field_),imag(field_));
 for ii = 1:size(amp,3)
+    if photonz
+        amp(:,:,ii) = (amp(:,:,ii) / sum(sum(amp(:,:,ii)))) * Nphotons_in_input_field(1,ii);
+    end
     field_(:,:,ii) = amp(:,:,ii) .* exp(1i * pha(:,:,ii));
 end
 

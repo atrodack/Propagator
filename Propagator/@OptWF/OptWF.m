@@ -373,16 +373,20 @@ classdef OptWF < matlab.mixin.Copyable
         end % of FresnelProp
         
         
-        function F = FraunhoferProp(F, propdist, pscale, lambda)
-            % F = FraunhoferProp(F, propdist, pscale, lambda)
+        function F = FraunhoferProp(F, propdist, pscale, lambda,photonz)
+            % F = FraunhoferProp(F, propdist, pscale, lambda,photonz)
             % Monochromatic Calculation - doesn't not scale psf size with
             % wavelength
+            
+            if nargin < 5
+                photonz = false;
+            end
             
             sz = size(F.field_);
             if length(sz) == 2
                 sz(3) = 1;
             end
-            
+
             k = (2*pi)./lambda;
             
             if isa( F.field_,'gpuArray')
@@ -395,7 +399,18 @@ classdef OptWF < matlab.mixin.Copyable
                 flag = false;
             end
             
+            amp = init_variable(sz(1),sz(2),sz(3),datatype,0);
+            Nphotons_in_input_field = init_variable(1,sz(3),1,datatype,0);
+            if photonz
+                for jj = 1:sz(3)
+                    amp(:,:,jj) = sqrt(real(F.field_(:,:,jj)).*real(F.field_(:,:,jj)) + imag(F.field_(:,:,jj)).*imag(F.field_(:,:,jj)));
+                    Nphotons_in_input_field(1,jj) = sum(sum(amp));
+                end
+            end
+            
             WFfocus = init_variable(sz(1),sz(2),sz(3),datatype,0);
+            field = init_variable(sz(1),sz(2),sz(3),datatype,0);
+
             if flag
                 WFfocus = gpuArray(WFfocus);
             end
@@ -411,6 +426,16 @@ classdef OptWF < matlab.mixin.Copyable
             F.set_field(WFfocus);
             F.ReIm2WF;
             
+            if photonz
+                amp = F.amp_;
+                pha = F.pha_;
+                for ii = 1:size(amp,3)
+                    amp(:,:,ii) = (amp(:,:,ii) / sum(sum(amp(:,:,ii)))) * Nphotons_in_input_field(1,ii);
+                    field(:,:,ii) = amp(:,:,ii) .* exp(1i * pha(:,:,ii));
+                end
+                F.set_field(field);
+                F.ReIm2WF;
+            end
         end % FraunhoferProp
 
         function [F,PSF] = computePSF_chirpzDFT(F,nld,D)
