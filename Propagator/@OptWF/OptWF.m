@@ -437,6 +437,50 @@ classdef OptWF < matlab.mixin.Copyable
                 F.ReIm2WF;
             end
         end % FraunhoferProp
+        
+        function F = FraunhoferProp2(F, pscale, direction,tiltphase)
+            % F = FraunhoferProp2(F, pscale, direction)
+            
+            if nargin < 3
+                direction = 1;
+            end
+            
+            sz = size(F.field_);
+            if length(sz) == 2
+                if sz(2) == 1
+                    sz(1) = sqrt(sz(1));
+                    sz(2) = sz(1);
+                    vec = true;
+                else
+                    vec = false;
+                end
+                sz(3) = 1;
+            end
+            
+            WFfocus = init_variable(sz(1),sz(2),sz(3),'single',0);
+            
+            if vec == 0
+                for ii = 1:sz(3)
+                    if direction == -1
+                        WFfocus = gather(fft2_back(WFfocus,(206.29508972167969*pscale .* pscale)^-1));
+%                         [centerPupil,~] = makeShiftPhase(sz(1),sz(3),'single');
+                        WFfocus = WFfocus.*tiltphase;
+                    else
+%                         [~,centerFocal] = makeShiftPhase(sz(1),sz(3),'single');
+                        WFfocus = gather(fft2_fwd(F.field_.*tiltphase,(206.29508972167969*pscale .* pscale)));
+                    end
+                end
+                
+            else
+                
+            end
+            
+            
+            F.set_field(WFfocus);
+            F.ReIm2WF;
+            
+            
+        end
 
         function [F,PSF] = computePSF_chirpzDFT(F,nld,D)
             % F = computePSF_chirpzDFT(F,WFin)
