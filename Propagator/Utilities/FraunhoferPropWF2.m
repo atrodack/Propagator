@@ -22,15 +22,25 @@ end
 
 field_ = init_variable(sz(1),sz(2),sz(3),'single',0);
 
+
+
 if vec == 0
     for ii = 1:sz(3)
         if direction == -1
-            field_ = gather(fft2_back(field,(206.29508972167969*pscale .* pscale)^-1));
-%             [centerPupil,~] = makeShiftPhase(sz(1),sz(3),'single');
+%             pscale = params.pscale;
+%             lambda = params.lambda;
+%             propdist = params.propdist;
+%             coeff = exp(1i*propdist*2*pi/lambda) / (1i*lambda*propdist);
+            field_ = gather(fft2_back(field,(pscale .* pscale)^-1));
+            % [centerPupil,~] = makeShiftPhase(sz(1),sz(3),'single');
             field_ = field_.*tiltphase;
         else
-%             [~,centerFocal] = makeShiftPhase(sz(1),sz(3),'single');
-            field_ = gather(fft2_fwd(field.*tiltphase,(206.29508972167969*pscale .* pscale)));
+%             pscale = params.pscale;
+%             lambda = params.lambda;
+%             propdist = params.propdist;
+%             coeff = exp(1i*propdist*2*pi/lambda) / (1i*lambda*propdist);
+            % [~,centerFocal] = makeShiftPhase(sz(1),sz(3),'single');
+            field_ = gather(fft2_fwd(field.*tiltphase,(pscale .* pscale)));
         end
     end
 
@@ -41,3 +51,6 @@ end
 field_(:,:,ii) = amp(:,:,ii) .* exp(1i * pha(:,:,ii));
 
 end % FraunhoferProp
+
+% 512: 206.29508972167969
+% 1024: 806.07720947265625
