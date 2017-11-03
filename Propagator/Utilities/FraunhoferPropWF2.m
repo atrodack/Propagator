@@ -33,7 +33,7 @@ if vec == 0
 %             coeff = exp(1i*propdist*2*pi/lambda) / (1i*lambda*propdist);
             field_ = gather(fft2_back(field,(pscale .* pscale)^-1));
             % [centerPupil,~] = makeShiftPhase(sz(1),sz(3),'single');
-            field_ = field_.*tiltphase;
+            field_ = sz(2)^2.*field_.*tiltphase;
         else
 %             pscale = params.pscale;
 %             lambda = params.lambda;

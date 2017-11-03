@@ -9,7 +9,7 @@ elseif nargin < 3
 end
 M = N-1;
 
-norm = 1/(sqrt(2));
+norm = 1/(N*sqrt(2));
 cnorm = complex(norm,norm);
 arg = pi+(-2.0*pi*0.5*N/(M));
 
