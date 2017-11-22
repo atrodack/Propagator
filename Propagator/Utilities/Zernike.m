@@ -17,10 +17,10 @@ R(isnan(R)) = 0;
 % At this point R(1) = 1, which is the standard zernike normalization. The
 % next few lines normalize it to unity rms on the unit circle
 
-% R_norm=R*sqrt(2*(n+1));
-% if m == 0,
-%    R=R/sqrt(2);
-% end
-
+R_norm=R*sqrt(2*(n+1));
+if m == 0,
+   R_norm=R_norm/sqrt(2);
+end
+R = R_norm*2.8884;
 
 end

@@ -15,17 +15,21 @@ function [ KL, sing_vals,cov_mat ] = KL_Basis( Noll_list, r_0, R,dx,N )
 % dx - pixel spacing
 % N - number of desired pixels per side of returned KL modes [N^2,1]
 %     vectors
+%
+% TODO:
+% Fix normalization?
+
 
 % Turn on/off debugging features
 DEBUG = false;
 
 % Make a Zernike Basis
-[Z,~] = Zernike_Basis(Noll_list,ones(length(Noll_list),1),2*R/dx,N);
+[Z,~] = Zernike_Basis(Noll_list,ones(length(Noll_list),1),(2*R/dx),N);
 Z = double(Z.');
 
 % Compute the analytical Zernike Covariance Matrix from [Noll, josa, 1975]
-cov_mat = NollZernikeCovMat(Noll_list,r_0,R);
-
+% cov_mat = NollZernikeCovMat(Noll_list,r_0,R);
+cov_mat = Wang_Markey_CovMat(Noll_list,2*R,r_0);
 
 % Eig Approach
 eigen_vals = eig(cov_mat);
@@ -33,8 +37,16 @@ sing_vals = eigen_vals;
 [V,D] = eig(cov_mat);
 KL = Z*V*abs(D)^-0.5;
 
+% Renormalize to unity rms
+tmp_rms = std(KL,1);
+scale = 1./tmp_rms;
+for ii = 1:size(KL,2)
+    KL(:,ii) = KL(:,ii)*scale(ii);
+end
+
+
 if DEBUG
-    for ii = 1:size(V,2)
+    for ii = 1:size(KL,2)
         subplot(ceil(sqrt(length(Noll_list))),ceil(sqrt(length(Noll_list))),ii)
         imagesc(real(reshape(KL(:,ii),N,N)));
         axis square;
@@ -45,7 +57,7 @@ if DEBUG
 end
 
 
-% SVD Approach
+% % SVD Approach
 % sing_vals = svd(cov_mat);
 % [U,S,V] = svd(cov_mat);
 % KL = Z*U*abs(S)^-0.5;
@@ -53,7 +65,7 @@ end
 % if DEBUG
 %     for ii = 1:size(V,2)
 %         subplot(ceil(sqrt(length(Noll_list))),ceil(sqrt(length(Noll_list))),ii)
-%         imagesc(real(reshape(KL(:,ii),N,N)));
+%         imagesc(real(reshape(Z(:,ii),N,N)));
 %         axis square;
 %         title(sprintf('KL Mode %d',ii));
 %         colorbar;
