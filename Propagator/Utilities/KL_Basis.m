@@ -37,13 +37,22 @@ sing_vals = eigen_vals;
 [V,D] = eig(cov_mat);
 KL = Z*V*abs(D)^-0.5;
 
+rms_vec = zeros(size(KL,2),1);
 % Renormalize to unity rms
-tmp_rms = std(KL,1);
-scale = 1./tmp_rms;
 for ii = 1:size(KL,2)
-    KL(:,ii) = KL(:,ii)*scale(ii);
+    tmp = KL(:,ii);
+    tmp2 = tmp(tmp~=0);
+    rms_vec(ii) = rms(tmp2);
+    KL(:,ii) = KL(:,ii) / rms_vec(ii);
 end
 
+if DEBUG
+    for ii = 1:size(KL,2)
+        tmp = KL(:,ii);
+        tmp2 = tmp(tmp~=0);
+        rms_vec(ii) = rms(tmp2);
+    end
+end
 
 if DEBUG
     for ii = 1:size(KL,2)

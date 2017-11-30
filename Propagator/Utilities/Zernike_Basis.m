@@ -31,14 +31,6 @@ for ii = 1:K
     tmp = Zernike2D(n,m,RHO,PHI);
     tmp = tmp .* unit_circ;
     
-    %     tmp=tmp*sqrt(2*(n+1));
-    %     if m == 0,
-    %         tmp=tmp/sqrt(2);
-    %     end
-    
-%     rms_orig = rms(tmp(tmp~=0));
-%     tmp = tmp / (rms_orig);
-    
     vec = rms_list(ii) * tmp(:);
     
     Z(ii,:) = vec;
