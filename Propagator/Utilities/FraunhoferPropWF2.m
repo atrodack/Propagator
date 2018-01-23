@@ -43,14 +43,18 @@ if vec == 0
             field_ = gather(fft2_fwd(field.*tiltphase,(pscale .* pscale)));
         end
     end
-
+elseif vec == true
+%     if direction == -1
+%         field_ = gather(fft2_back(field,(pscale .* pscale)^-1));
+%         field_ = sz(2)^2.*field_.*tiltphase;
+%     else
+%         field_ = gather(fft2_fwd(field.*tiltphase,(pscale .* pscale)));
+%     end
 end
+
 
 
 [amp,pha] = WFReIm2AmpPhase2(real(field_),imag(field_));
 field_(:,:,ii) = amp(:,:,ii) .* exp(1i * pha(:,:,ii));
 
 end % FraunhoferProp
-
-% 512: 206.29508972167969
-% 1024: 806.07720947265625
