@@ -1,5 +1,5 @@
 function field_ = FraunhoferPropWF2(field, pscale, direction,tiltphase)
-% F = FraunhoferProp(F, propdist, pscale, lambda)
+% F = FraunhoferProp(field, pscale, direction, tiltphase)
 % Monochromatic Calculation - doesn't not scale psf size with
 % wavelength
 
@@ -18,6 +18,9 @@ if length(sz) == 2
         vec = false;
     end
     sz(3) = 1;
+elseif length(sz) == 3
+    vec = false;
+    
 end
 
 field_ = init_variable(sz(1),sz(2),sz(3),'single',0);
@@ -44,12 +47,13 @@ if vec == 0
         end
     end
 elseif vec == true
-%     if direction == -1
-%         field_ = gather(fft2_back(field,(pscale .* pscale)^-1));
-%         field_ = sz(2)^2.*field_.*tiltphase;
-%     else
-%         field_ = gather(fft2_fwd(field.*tiltphase,(pscale .* pscale)));
-%     end
+    %     if direction == -1
+    %         field_ = gather(fft2_back(field,(pscale .* pscale)^-1));
+    %         field_ = sz(2)^2.*field_.*tiltphase;
+    %     else
+    %         field_ = gather(fft2_fwd(field.*tiltphase,(pscale .* pscale)));
+    %     end
+    error('not supported');
 end
 
 
