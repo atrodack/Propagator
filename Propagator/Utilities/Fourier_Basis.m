@@ -1,4 +1,4 @@
-function [ F ] = Fourier_Basis(L, Nbasis,N )
+function [ F, SFlist ] = Fourier_Basis(L, Nbasis,N )
 %[ F ] = Fourier_Basis(  L, Nbasis, N )
 % Makes a matrix whose rows are normalized Fourier basis functions
 % 
@@ -25,10 +25,13 @@ y = x;
 [X,Y] = meshgrid(x,y);
 
 F = init_variable(K,N*N,1,'single',0);
+SFlist = init_variable(K,2,1,'double',0);
 
 counter = 1;
 for k = -endpoint:endpoint
     for l = -endpoint:endpoint
+        SFlist(counter,1) = k;
+        SFlist(counter,2) = l;
         basis = (1/L) * exp(2*pi*1i*(k*X + l*Y)/L);
         F(counter, :) = basis(:);
         

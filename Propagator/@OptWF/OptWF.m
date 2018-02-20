@@ -602,6 +602,8 @@ classdef OptWF < matlab.mixin.Copyable
                 thy = theta(2) / 206265;
                 kappax = k.*thx;
                 kappay = k.*thy;
+%                 kappax = thx;
+%                 kappay = thy;
                 
                 alpha = exp(-1i.*(kappax.*X+kappay.*Y));
                 WF = amplitude .* init_variable(F.gridsize_(1), F.gridsize_(2),numLambdas,F.default_data_type,1) .*alpha;
