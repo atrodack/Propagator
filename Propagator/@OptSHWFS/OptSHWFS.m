@@ -1,8 +1,9 @@
 classdef OptSHWFS < OptWFS
     %OPTSHWFS Class for modeling a Shack-Hartmann WFS
     %   Child of OptWFS
-    %   Inspired and modeled following JLCodona AOShackHartmann class in
-    %   AOSim2
+    %
+    %   Adapted from JLCodona's AOShackHartmann class in AOSim2:
+    %   https://github.com/jlcodona/AOSim2/blob/jlc1.4/AOSim2/%40AOShackHartmann/AOShackHartmann.m
     
     properties(GetAccess='public',SetAccess='public')
         
@@ -32,15 +33,15 @@ classdef OptSHWFS < OptWFS
         subApFields_;
         
         % Measured Centroids
-        Xtroids_ = [];
-        Ytroids_ = [];
+        Xslopes_ = [];
+        Yslopes_ = [];
         
         % Initial/previous bias
-        Xtroids0_ = [];
-        Ytroids0_ = [];
+        Xslopes0_ = [];
+        Yslopes0_ = [];
         
-        % Fake Sensing?
-        useFake_ = 0;
+        % Sensing Shape
+        useCircMasks_ = 1;
         
     end % of protected properties
     
@@ -57,7 +58,7 @@ classdef OptSHWFS < OptWFS
 %           PROPERTIES{3,1} = Offset                [float in m]
 %           PROPERTIES{4,1} = x                     [float in m]
 %           PROPERTIES{5,1} = y                     [float in m]
-%           PROPERTIES{6,1} = useFake               [Boolean]
+%           PROPERTIES{6,1} = useCircMasks          [Boolean]
             
             if size(PROPERTIES) == [6,1]
                 if iscell(PROPERTIES) == 1
@@ -74,7 +75,7 @@ classdef OptSHWFS < OptWFS
             SHWFS.setsubAp_spacing(PROPERTIES{2,1});
             SHWFS.setOffset(PROPERTIES{3,1});
             SHWFS.setCoords(PROPERTIES{4,1},PROPERTIES{5,1});
-            SHWFS.setFakeFlag(PROPERTIES{6,1});
+            SHWFS.setCircMaskFlag(PROPERTIES{6,1});
             SHWFS.setGridSize(N);
             SHWFS.interpolate_method = 'nearest';
             
@@ -113,10 +114,10 @@ classdef OptSHWFS < OptWFS
             SHWFS.Offset_ = Coords;
         end % of setOffset
         
-        function SHWFS = setFakeFlag(SHWFS,flag)
+        function SHWFS = setCircMaskFlag(SHWFS,flag)
             % SHWFS = setFakeFlag(SHWFS,flag)
-            SHWFS.useFake_ = flag;
-        end % of setFakeFlag
+            SHWFS.useCircMasks_ = flag;
+        end % of setCircMaskFlag
         
         %% SubAperture Methods
         
@@ -153,11 +154,15 @@ classdef OptSHWFS < OptWFS
             SHWFS.NsubAps_ = length(SHWFS.XsubApCoords_);
             
             
-            Acopy_ext = [size(SHWFS.A_,1)*dx , size(SHWFS.A_,2)*dy];
-            gx = linspace(-ceil(Acopy_ext(1)/2),ceil(Acopy_ext(1)/2),size(SHWFS.A_,1));
-            gy = linspace(-ceil(Acopy_ext(2)/2),ceil(Acopy_ext(2)/2),size(SHWFS.A_,2));
+            Acopy = SHWFS.A_;
+            Acopy = padarray(Acopy,[ceil(SHWFS.subApDiam_/dx), ceil(SHWFS.subApDiam_/dy)]);
+            Acopy = conv2(Acopy,fspecial('disk',SHWFS.subApDiam_/dx/2));
+            Acopy_ext = [size(Acopy,1)*dx , size(Acopy,2)*dy];
+
+            gx = linspace(-ceil(Acopy_ext(1)/2),ceil(Acopy_ext(1)/2),size(Acopy,1));
+            gy = linspace(-ceil(Acopy_ext(2)/2),ceil(Acopy_ext(2)/2),size(Acopy,2));
             [GX,GY] = meshgrid(gx,gy);
-            aper = interp2(GX,GY,SHWFS.A_,XWFS,YWFS,SHWFS.interpolate_method);
+            aper = interp2(GX,GY,Acopy,XWFS,YWFS,SHWFS.interpolate_method);
             
             SHWFS.MaskedAps_ = (aper < thresh);
             
@@ -173,9 +178,10 @@ classdef OptSHWFS < OptWFS
         
         function SHWFS = setBias(SHWFS)
             
-            SHWFS.Xtroids0_ = SHWFS.Xtroids_;
-            SHWFS.Ytroids0_ = SHWFS.Ytroids_;
+            SHWFS.Xslopes0_ = SHWFS.Xslopes_;
+            SHWFS.Yslopes0_ = SHWFS.Yslopes_;
         end % of setBias
+        
         
         function [subApFields,dx] = parseField(SHWFS,field)
             
@@ -188,11 +194,11 @@ classdef OptSHWFS < OptWFS
             [Xf,Yf] = meshgrid(x);
             [XsubApCoords, YsubApCoords] = SHWFS.getMaskedsubApCoords;
             
-            if ~SHWFS.useFake_
+            if ~SHWFS.useCircMasks_
                 Rf = sqrt(Xf.^2 + Yf.^2);
-                mask = single(Rf<max(Xf(:)));
+                mask = (Rf<max(Xf(:)));
             else
-                mask = single(ones(size(Xf)));
+                mask = (ones(size(Xf)));
             end
             
             subApFields = init_variable(size(Xf,1),size(Xf,2),SHWFS.NunMaksedsubAps_,SHWFS.default_data_type,0);
@@ -201,7 +207,8 @@ classdef OptSHWFS < OptWFS
             end            
         end % of parseField
         
-        function SHWFS = Fakesense(SHWFS,field,lambda)
+        
+        function SHWFS = IdealSense(SHWFS,field,lambda)
             
             [subApFields,dx] = SHWFS.parseField(field);
             subApFields(isnan(subApFields)) = 0;
@@ -209,18 +216,19 @@ classdef OptSHWFS < OptWFS
             dwf1 = angle(squeeze(mean(mean(subApFields(2:end,:,:).*conj(subApFields(1:end-1,:,:))))))*lambda/2/pi;
             dwf2 = angle(squeeze(mean(mean(subApFields(:,2:end,:).*conj(subApFields(:,1:end-1,:))))))*lambda/2/pi;
             
-            SHWFS.Xtroids_ = 206265 * dwf2 / dx;
-            SHWFS.Ytroids_ = 206265 * dwf1 / dx;
+            SHWFS.Xslopes_ = 206265 * dwf2 / dx;
+            SHWFS.Yslopes_ = 206265 * dwf1 / dx;
             
-            if(length(SHWFS.Xtroids_) ~= length(SHWFS.Xtroids0_))
-                SHWFS.Xtroids0_ = zeros(size(SHWFS.Xtroids_));
-                SHWFS.Ytroids0_ = zeros(size(SHWFS.Ytroids_));
+            if(length(SHWFS.Xslopes_) ~= length(SHWFS.Xslopes0_))
+                SHWFS.Xslopes0_ = zeros(size(SHWFS.Xslopes_));
+                SHWFS.Yslopes0_ = zeros(size(SHWFS.Yslopes_));
             end
-        end % of Fakesense
+        end % of IdealSense
             
+        
         function [Sx, Sy] = getSlopes(SHWFS)
-            Sx = SHWFS.Xtroids_ - SHWFS.Xtroids0_;
-            Sy = SHWFS.Ytroids_ - SHWFS.Ytroids0_;
+            Sx = SHWFS.Xslopes_ - SHWFS.Xslopes0_;
+            Sy = SHWFS.Yslopes_ - SHWFS.Yslopes0_;
         end % of getSlopes
         
         
