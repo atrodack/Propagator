@@ -16,7 +16,7 @@ classdef OptDetector < OptElement
          %% Constructor
         function elem = OptDetector(PROPERTIES)
             % elem = OptDetector(PROPERTIES)
-            % PROPERTIES is a 7x1 cell array containing element properties
+            % PROPERTIES is a 5x1 cell array containing element properties
             % If something is unknown or to be set later, leave that
             % position in A empty:
             %
@@ -32,10 +32,10 @@ classdef OptDetector < OptElement
                 if iscell(PROPERTIES) == 1
                     A = PROPERTIES;
                 else
-                    error('PROPERTIES must be 7x1 cell array!');
+                    error('PROPERTIES must be 5x1 cell array!');
                 end
             else
-                error('PROPERTIES must be a 7x1 cell array!');
+                error('PROPERTIES must be a 5x1 cell array!');
             end
             
             elem.set_name(A{1,1});
