@@ -17,8 +17,8 @@ classdef OptSHWFS < OptWFS
         y_;
         
         % Device Properties
-        NsubAps_;
-        NunMaksedsubAps_;
+        nSubAps_;
+        nUnMaksedsubAps_;
         subAp_spacing_;
         subApDiam_;
         Offset_ = [0,0];
@@ -151,7 +151,7 @@ classdef OptSHWFS < OptWFS
             SHWFS.XsubApCoords_ = XWFS(:);
             SHWFS.YsubApCoords_ = YWFS(:);
             
-            SHWFS.NsubAps_ = length(SHWFS.XsubApCoords_);
+            SHWFS.nSubAps_ = length(SHWFS.XsubApCoords_);
             
             
             Acopy = SHWFS.A_;
@@ -171,7 +171,7 @@ classdef OptSHWFS < OptWFS
         function [XsubApCoords, YsubApCoords] = getMaskedsubApCoords(SHWFS)
             XsubApCoords = SHWFS.XsubApCoords_(~SHWFS.MaskedAps_);
             YsubApCoords = SHWFS.YsubApCoords_(~SHWFS.MaskedAps_);
-            SHWFS.NunMaksedsubAps_ = length(XsubApCoords);
+            SHWFS.nUnMaksedsubAps_ = length(XsubApCoords);
         end % of getMaskedsubApCoords
         
         %% Sensing Methods
@@ -201,8 +201,8 @@ classdef OptSHWFS < OptWFS
                 mask = (ones(size(Xf)));
             end
             
-            subApFields = init_variable(size(Xf,1),size(Xf,2),SHWFS.NunMaksedsubAps_,SHWFS.default_data_type,0);
-            for ii = 1:SHWFS.NunMaksedsubAps_
+            subApFields = init_variable(size(Xf,1),size(Xf,2),SHWFS.nUnMaksedsubAps_,SHWFS.default_data_type,0);
+            for ii = 1:SHWFS.nUnMaksedsubAps_
                 subApFields(:,:,ii) = mask.*interp2(SHWFS.x_, SHWFS.y_, field,Xf+XsubApCoords(ii), Yf+YsubApCoords(ii),SHWFS.interpolate_method);
             end            
         end % of parseField
