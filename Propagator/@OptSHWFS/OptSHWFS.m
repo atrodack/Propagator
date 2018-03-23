@@ -176,12 +176,24 @@ classdef OptSHWFS < OptWFS
         
         %% Sensing Methods
         
+        
+        function SHWFS = sense(SHWFS,field,lambda)
+            % Wrapper function for calling sensing methods
+            
+            SHWFS.IdealSense(field,lambda);
+        end % of sense
+        
+        
         function SHWFS = setBias(SHWFS)
             
             SHWFS.Xslopes0_ = SHWFS.Xslopes_;
             SHWFS.Yslopes0_ = SHWFS.Yslopes_;
         end % of setBias
         
+        function SHWFS = setBias2(SHWFS,Sx,Sy)
+            SHWFS.Xslopes0_ = Sx;
+            SHWFS.Yslopes0_ = Sy;
+        end
         
         function [subApFields,dx] = parseField(SHWFS,field)
             
@@ -219,6 +231,9 @@ classdef OptSHWFS < OptWFS
             SHWFS.Xslopes_ = 206265 * dwf2 / dx;
             SHWFS.Yslopes_ = 206265 * dwf1 / dx;
             
+%             SHWFS.Xslopes_ = dwf2;
+%             SHWFS.Yslopes_ = dwf1;
+
             if(length(SHWFS.Xslopes_) ~= length(SHWFS.Xslopes0_))
                 SHWFS.Xslopes0_ = zeros(size(SHWFS.Xslopes_));
                 SHWFS.Yslopes0_ = zeros(size(SHWFS.Yslopes_));
@@ -231,6 +246,9 @@ classdef OptSHWFS < OptWFS
             Sy = SHWFS.Yslopes_ - SHWFS.Yslopes0_;
         end % of getSlopes
         
+        function SLOPES = getSlopesArray(SHWFS)
+            SLOPES = [SHWFS.Xslopes_(:)-SHWFS.Xslopes0_(:); SHWFS.Yslopes_(:)-SHWFS.Yslopes0_(:)];
+        end % of getSlopesArray
         
         %% Plotting Methods
         function plotsubApCenters(SHWFS,fignum)

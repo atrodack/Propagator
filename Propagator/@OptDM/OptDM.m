@@ -9,6 +9,7 @@ classdef OptDM < OptMirror
         influencefxn_;
         ActMap_;
         nActuators_;
+        stroke_;
         
         % Coordinates
         X_;
@@ -171,6 +172,29 @@ classdef OptDM < OptMirror
             DM.actuators_(:,3) = displacements;
         end % of setDM
         
+        function DM = disableActuators(DM,actuator_list)
+            for ii = 1:length(actuator_list)
+                if actuator_list(ii) == 1
+                    DM.actuators_(actuator_list,4) = 0;
+                end
+            end
+        end % of disableActuators
+        
+        function DM = rmmean(DM)
+            SEL = DM.actuators_(:,4)~=0;
+            mean_val = mean(DM.actuators_(SEL,3));
+            DM.actuators_(SEL,3) = DM.actuators_(SEL,3) - mean_val;
+        end % of rmmean
+            
+        function DM = railActs(DM,stroke)
+            if nargin < 2
+                stroke = DM.stroke_;
+            end
+            DM.stroke_ = stroke;
+            MAX = DM.stroke_ / 2;
+            MIN = - DM.stroke_ / 2;
+            DM.actuators_(:,3) = max(min(DM.actuators_(:,3),MAX),MIN);
+        end % of railActs
         
       %% Influence Functions
       
@@ -203,7 +227,8 @@ classdef OptDM < OptMirror
       
       % Easy
       function DM = EZmodel(DM)
-          g = griddata(double([DM.actuators_(:,1);DM.bconds_(:,1)]), double([DM.actuators_(:,2);DM.bconds_(:,2)]),double([DM.actuators_(:,3);DM.bconds_(:,3)]),DM.X_,DM.Y_,'natural');
+          SEL = DM.actuators_(:,4)~=0;
+          g = griddata(double([DM.actuators_(SEL,1);DM.bconds_(:,1)]), double([DM.actuators_(SEL,2);DM.bconds_(:,2)]),double([DM.actuators_(SEL,3);DM.bconds_(:,3)]),DM.X_,DM.Y_,'natural');
           g(isnan(g)) = 0;
           
           if strcmpi(DM.default_data_type,'single')
@@ -220,8 +245,8 @@ classdef OptDM < OptMirror
           end
           hold on
           OnActs = DM.actuators_(:,4)~=0;
-          plot(DM.actuators_(OnActs,1), DM.actuators_(OnActs,2),'ko','MarkerSize',2);
-          plot(DM.actuators_(~OnActs,1), DM.actuators_(~OnActs,2),'rx','MarkerSize',2);
+          plot(DM.actuators_(OnActs,1), DM.actuators_(OnActs,2),'ko','MarkerSize',1);
+          plot(DM.actuators_(~OnActs,1), DM.actuators_(~OnActs,2),'rx','MarkerSize',1);
           plot(DM.bconds_(:,1),DM.bconds_(:,2),'bs');
         if show_labels
             for ii = 1:DM.nActuators_
