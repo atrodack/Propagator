@@ -160,6 +160,12 @@ classdef OptWF < matlab.mixin.Copyable
         
         %% Utilities
         
+        function F = set_useGPU(F,useGPU)
+            % F = set_useGPU(F,useGPU)
+            F.useGPU = useGPU;
+            
+        end % of set_useGPU
+        
         function F = set_datatype(F,default_data_type)
             % elem = datatype(default_data_type)
             % Sets the datatype to use. Do not do anything if already of

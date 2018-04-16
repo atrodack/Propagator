@@ -100,6 +100,9 @@ classdef OptReconstructor < matlab.mixin.Copyable
             dy = y(2) - y(1);
             flag = 1;
             
+            useGPU = field.useGPU;
+            field.set_useGPU(0);
+            
             % Prepare Zernike Basis
             fprintf('Setting up Zernike Basis set:\n');
             Noll_list = 2:Zmax;
@@ -173,6 +176,8 @@ classdef OptReconstructor < matlab.mixin.Copyable
 %                     pause(0.1);
                 end
             end % of Training for loop
+            field.set_useGPU(useGPU);
+            
             fprintf('\n');
             recon.SLOPES_(isnan(recon.SLOPES_)) = 0;
             recon.ACTS_(isnan(recon.ACTS_)) = 0;
@@ -348,6 +353,110 @@ classdef OptReconstructor < matlab.mixin.Copyable
             
             recon.buildRecon;
         end % of PokeTraining
+        
+        function RECON = AOResRecon(recon,D,Zmax,field)
+            % AOResRecon(recon,D,Zmax,field)
+            
+            % Initialize some variables
+            recon.D_ = D;
+            recon.lambda_ = field.lambda0_;
+            k = (2*pi) / recon.lambda_;
+            N = recon.WFS_.N_;
+            x = recon.WFS_.x_;
+            y = recon.WFS_.y_;
+            dx = x(2) - x(1);
+            dy = y(2) - y(1);
+            flag = 1;
+            
+            useGPU = field.useGPU;
+            field.set_useGPU(0);
+            
+            % Prepare Zernike Basis
+            fprintf('Setting up Zernike Basis set:\n');
+            Noll_list = 2:Zmax;
+            nZmodes = length(Noll_list);
+            SLOPES_ = zeros(2*recon.WFS_.nUnMaksedsubAps_,nZmodes);
+            [Z_basis,~] = Zernike_Basis(Noll_list,ones(nZmodes,1),(D*1.125)/dx,N);
+            Z = zeros(N,N,nZmodes);
+            for ii = 1:nZmodes
+                [nn,mm] = Noll(Noll_list(ii));
+                weight = (nn^2 + mm^2) ^ (-5/6);
+                Z(:,:,ii) = weight * reshape(Z_basis(ii,:),N,N) * recon.lambda_/4 / nn;
+            end
+            Npoints = N^2;
+            ACTS_ = zeros(Npoints,nZmodes);
+            
+            % Set WFS bias
+            field.planewave(1,1);
+            field.ApplyElement(recon.A_,1); % Assuming in Air
+            recon.WFS_.sense(field.field_,recon.lambda_).setBias;
+            fprintf('Training with Zernike Polynomials: Nmodes = %d:\n',nZmodes);
+            
+            
+            nn = 0;
+            % Train
+            for ii = 1:nZmodes
+                nn_prev = nn;
+                [nn,mm] = Noll(Noll_list(ii));
+                if nn_prev ~= nn
+                    flag = 1;
+                else
+                    flag = 0;
+                end
+                if flag
+                    fprintf('\n');
+                    fprintf('%d:',nn);
+                end
+                fprintf('\t %d',mm); 
+                
+                field.planewave(1,1).ApplyElement(recon.A_,1).ApplyPhaseScreen(-Z(:,:,ii),recon.lambda_).ReIm2WF;
+                recon.WFS_.sense(field.field_,recon.lambda_);
+                
+                tmp = Z(:,:,ii) .* recon.A_.zsag_;
+                ACTS_(:,ii) = tmp(:);
+                SLOPES_(:,ii) = recon.WFS_.getSlopesArray;
+                
+                if(recon.verbose)
+                    clf;
+                    hold on;
+                    subplot(1,2,1)
+                    imagesc(x,x,field.pha_/k);
+                    axis square;
+                    axis xy;
+                    title('SHWFS over Field Phase')
+                    colormap(gray);
+                    colorbar;
+                    recon.WFS_.plotSubAps('b-');
+                    recon.WFS_.quiver('g-');
+                    
+                    subplot(1,2,2)
+                    imagesc(x,y,recon.A_.zsag_ .* Z(:,:,ii));
+                    axis square;
+                    axis xy;
+                    colorbar;
+                    title('DM Surface');
+                    hold off;
+                    drawnow;
+%                     pause(0.1);
+                end
+            end % of Training for loop
+            field.set_useGPU(useGPU);
+            
+            fprintf('\n');
+            SLOPES_(isnan(SLOPES_)) = 0;
+            [UU,SS,VV] = svd(SLOPES_','econ');
+            s_ = diag(SS);
+            
+%             cutoff = 1e-2;
+%             MODES = (recon.s_ / recon.s_(1) >= cutoff);
+            MODES = 1:nZmodes;
+            MODES(s_(MODES)<1e-16) = [];
+            
+            RECON = ((VV(:,MODES) * ...
+                (diag(1./s_(MODES)) * UU(:,MODES)')) ...
+                * ACTS_')' ;
+            
+        end % of AOResRecon
         
     end
     
