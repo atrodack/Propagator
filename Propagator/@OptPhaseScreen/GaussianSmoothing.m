@@ -38,6 +38,8 @@ if nGPUs > 0
 end
 
 screen = gather(conv2(screen,SMOOTH,'same'));
+SMOOTH = gather(SMOOTH);
+clear SMOOTH;
 
 if nargin>2
     screen = circshift(screen,WindLag); % Leaves edge artifacts :(
