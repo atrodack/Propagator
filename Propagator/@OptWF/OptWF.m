@@ -468,7 +468,7 @@ classdef OptWF < matlab.mixin.Copyable
             if vec == 0
                 for ii = 1:sz(3)
                     if direction == -1
-                        WFfocus = gather(fft2_back(WFfocus,(pscale .* pscale)^-1));
+                        WFfocus = gather(fft2_back(F.field_,(pscale .* pscale)^-1));
 %                         [centerPupil,~] = makeShiftPhase(sz(1),sz(3),'single');
                         WFfocus = sz(2)^2.*WFfocus.*tiltphase;
                     else

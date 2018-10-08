@@ -9,7 +9,7 @@ if useShotNoise
 end
    
 if useReadNoise
-    psf = psf + (randn(size(psf)))*ReadNoise;
+    psf = psf + (randn(size(psf))).*(psf.^0.5)*ReadNoise;
 end
 psf = single(abs(psf));
 
