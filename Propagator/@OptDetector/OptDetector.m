@@ -250,5 +250,5 @@ classdef OptDetector < OptElement
         
         end % of methods
         
-    end
+end
     
